@@ -7,6 +7,54 @@ import {
 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 
+// --- COMPONENTE DE LOGIN (Para evitar la pantalla negra) ---
+function AuthView() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) alert("Error: " + error.message);
+    setLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center p-6 font-sans">
+      <form onSubmit={handleLogin} className="bg-slate-950 p-10 rounded-[3rem] border border-slate-900 w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-500">
+        <div className="flex justify-center mb-6">
+           <div className="bg-blue-600/10 p-4 rounded-2xl">
+              <Monitor size={40} className="text-blue-500" />
+           </div>
+        </div>
+        <h2 className="text-3xl font-black text-white italic mb-2 text-center uppercase tracking-tighter">StreamPro</h2>
+        <p className="text-slate-500 text-center text-xs font-bold mb-8 uppercase tracking-widest">Panel de Administración</p>
+        
+        <div className="space-y-4">
+          <input 
+            type="email" placeholder="Correo electrónico" 
+            className="w-full bg-black border border-slate-800 rounded-2xl p-4 text-white outline-none focus:border-blue-600 transition-all font-bold"
+            value={email} onChange={e => setEmail(e.target.value)} required 
+          />
+          <input 
+            type="password" placeholder="Contraseña" 
+            className="w-full bg-black border border-slate-800 rounded-2xl p-4 text-white outline-none focus:border-blue-600 transition-all font-bold"
+            value={password} onChange={e => setPassword(e.target.value)} required 
+          />
+          <button 
+            type="submit" disabled={loading}
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black uppercase italic tracking-widest transition-all shadow-lg shadow-blue-900/20 disabled:opacity-50"
+          >
+            {loading ? 'Cargando...' : 'Entrar al Sistema'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 function App() {
   const [session, setSession] = useState(null);
   const [vistaActual, setVistaActual] = useState('dashboard');
@@ -63,26 +111,10 @@ function App() {
   const handleGuardarInventario = async (e) => {
     e.preventDefault();
     if (!invServicio) return alert("Selecciona un servicio");
-    
-    const payload = { 
-      correo: invCorreo, 
-      password: invPass, 
-      servicio: invServicio, 
-      perfiles_totales: parseInt(invTotales), 
-      perfiles_libres: parseInt(invTotales), 
-      estado: 'Disponible', 
-      user_id: session.user.id 
-    };
-
+    const payload = { correo: invCorreo, password: invPass, servicio: invServicio, perfiles_totales: parseInt(invTotales), perfiles_libres: parseInt(invTotales), estado: 'Disponible', user_id: session.user.id };
     const { error } = await supabase.from('inventario').insert([payload]);
-    
-    if (error) {
-      console.error("Error al guardar:", error.message);
-      alert("Error: " + error.message);
-    } else {
-      setInvCorreo(''); setInvPass(''); setInvServicio(''); setIsInvModalOpen(false);
-      fetchInventario(session.user.id);
-    }
+    if (error) alert("Error: " + error.message);
+    else { setInvCorreo(''); setInvPass(''); setInvServicio(''); setIsInvModalOpen(false); fetchInventario(session.user.id); }
   };
 
   const eliminarRegistro = async (id) => {
@@ -109,7 +141,6 @@ function App() {
           <PlusCircle size={18}/> Agregar Cuenta
         </button>
       </header>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
         {['Netflix', 'Disney+', 'Spotify', 'HBO Max'].map(srv => (
           <div key={srv} className="bg-slate-950 border border-slate-900 p-6 rounded-3xl">
@@ -120,7 +151,6 @@ function App() {
           </div>
         ))}
       </div>
-
       <div className="bg-slate-950 border border-slate-900 rounded-[2.5rem] overflow-hidden">
         <table className="w-full text-left">
           <thead className="bg-black/40 text-slate-600 text-[10px] font-black uppercase border-b border-slate-900">
@@ -146,7 +176,8 @@ function App() {
     </div>
   );
 
-  if (!session) return <div className="bg-black min-h-screen" />;
+  // SI NO HAY SESIÓN, MOSTRAR LOGIN EN LUGAR DE PANTALLA NEGRA
+  if (!session) return <AuthView />;
 
   return (
     <div className="min-h-screen bg-black text-slate-300 flex font-sans">
@@ -176,13 +207,13 @@ function App() {
                    <h3 className="text-[10px] font-black text-slate-600 uppercase mb-6 italic tracking-widest flex items-center gap-2"><TrendingUp size={14}/> Crecimiento</h3>
                    <div className="h-48">
                       <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={registros.slice(0, 10).reverse()}><Area type="monotone" dataKey="monto" stroke="#3b82f6" strokeWidth={4} fill="rgba(59, 130, 246, 0.1)" /></AreaChart>
+                        <AreaChart data={registros.length > 0 ? registros.slice(0, 10).reverse() : [{monto:0}]}><Area type="monotone" dataKey="monto" stroke="#3b82f6" strokeWidth={4} fill="rgba(59, 130, 246, 0.1)" /></AreaChart>
                       </ResponsiveContainer>
                    </div>
                 </div>
                 <div className="space-y-6">
                    <div className="bg-slate-950 border border-slate-900 p-7 rounded-[2rem] flex items-center justify-between border-l-4 border-l-emerald-500">
-                      <div><p className="text-slate-500 text-[10px] font-black uppercase italic">Ventas</p><h4 className="text-3xl font-black text-emerald-400 italic">S/. {registros.reduce((acc, c) => acc + (c.monto || 0), 0).toFixed(2)}</h4></div>
+                      <div><p className="text-slate-500 text-[10px] font-black uppercase italic">Ventas Totales</p><h4 className="text-3xl font-black text-emerald-400 italic">S/. {registros.reduce((acc, c) => acc + (c.monto || 0), 0).toFixed(2)}</h4></div>
                       <DollarSign className="text-slate-800" size={32}/>
                    </div>
                 </div>
@@ -192,12 +223,12 @@ function App() {
 
         {vistaActual === 'clientes' && (
            <div className="p-10 animate-in fade-in">
-              <header className="flex justify-between items-center mb-10"><h2 className="text-4xl font-black text-white italic uppercase">Clientes</h2><div className="relative w-80"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18}/><input type="text" placeholder="Buscar..." className="w-full bg-slate-950 border border-slate-900 rounded-2xl py-4 pl-12 text-sm text-white outline-none focus:border-blue-600 italic" onChange={(e) => setFiltro(e.target.value)} /></div></header>
+              <header className="flex justify-between items-center mb-10"><h2 className="text-4xl font-black text-white italic uppercase">Clientes</h2><div className="relative w-80"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18}/><input type="text" placeholder="Buscar cliente..." className="w-full bg-slate-950 border border-slate-900 rounded-2xl py-4 pl-12 text-sm text-white outline-none focus:border-blue-600 italic font-bold" onChange={(e) => setFiltro(e.target.value)} /></div></header>
               <div className="bg-slate-950 border border-slate-900 rounded-[2.5rem] overflow-hidden">
                 <table className="w-full text-left">
                   <tbody className="divide-y divide-slate-900">
                     {registros.filter(r => r.nombre_negocio.toLowerCase().includes(filtro.toLowerCase())).map(item => (
-                      <tr key={item.id} className="hover:bg-blue-600/[0.02]">
+                      <tr key={item.id} className="hover:bg-blue-600/[0.02] transition-colors">
                         <td className="px-8 py-6 font-bold text-slate-200 italic text-lg">{item.nombre_negocio}</td>
                         <td className="px-8 py-6 text-blue-500 font-black text-[10px] uppercase italic tracking-widest">{item.servicio}</td>
                         <td className="px-8 py-6 text-slate-500 font-mono text-sm">{item.whatsapp}</td>
@@ -241,7 +272,7 @@ function App() {
             <div className="flex justify-between items-center mb-8"><h3 className="text-3xl font-black italic text-white uppercase">{editId ? 'Editar Cliente' : 'Nueva Venta'}</h3><button onClick={cerrarModal} className="text-slate-500 hover:text-white"><X size={24}/></button></div>
             <form onSubmit={handleGuardarCliente} className="grid grid-cols-2 gap-4">
               <input required value={nombre} onChange={e => setNombre(e.target.value)} className="col-span-2 bg-black border border-slate-800 rounded-2xl p-4 text-white italic font-bold outline-none focus:border-blue-600" placeholder="Nombre" />
-              <input required value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className="bg-black border border-slate-800 rounded-2xl p-4 text-white italic font-bold outline-none focus:border-blue-600" placeholder="WhatsApp" />
+              <input required value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className="col-span-2 bg-black border border-slate-800 rounded-2xl p-4 text-white italic font-bold outline-none focus:border-blue-600" placeholder="WhatsApp" />
               <select required value={servicio} onChange={e => setServicio(e.target.value)} className="bg-black border border-slate-800 rounded-2xl p-4 text-white italic font-bold outline-none focus:border-blue-600">
                 <option value="">Servicio...</option><option value="Netflix">Netflix</option><option value="Disney+">Disney+</option><option value="Spotify">Spotify</option><option value="HBO Max">HBO Max</option>
               </select>
