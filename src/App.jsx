@@ -31,7 +31,7 @@ function AuthView() {
              </div>
           </div>
           <h2 className="text-4xl font-black text-white italic mb-1 text-center uppercase tracking-tighter">ZERO</h2>
-          <p className="text-slate-500 text-center text-[10px] font-bold mb-8 uppercase tracking-widest italic">Management System</p>
+          <p className="text-slate-500 text-center text-[10px] font-bold mb-8 uppercase tracking-widest italic">Ingresa a tu panel de control</p>
           
           <div className="space-y-4">
             <input 
