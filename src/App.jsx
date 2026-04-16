@@ -3,11 +3,11 @@ import { supabase } from './supabaseClient';
 import { 
   LayoutDashboard, PlusCircle, X, LogOut, Monitor, 
   Users, DollarSign, AlertCircle, Search, TrendingUp, 
-  Package, Edit3, Trash2, Key, Mail
+  Package, Edit3, Trash2, Key, Mail, MessageCircle
 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 
-// --- COMPONENTE DE LOGIN (Para evitar la pantalla negra) ---
+// --- COMPONENTE DE LOGIN (Versión ZERO Comercial) ---
 function AuthView() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,34 +23,49 @@ function AuthView() {
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-6 font-sans">
-      <form onSubmit={handleLogin} className="bg-slate-950 p-10 rounded-[3rem] border border-slate-900 w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-500">
-        <div className="flex justify-center mb-6">
-           <div className="bg-blue-600/10 p-4 rounded-2xl">
-              <Monitor size={40} className="text-blue-500" />
-           </div>
-        </div>
-        <h2 className="text-3xl font-black text-white italic mb-2 text-center uppercase tracking-tighter">StreamPro</h2>
-        <p className="text-slate-500 text-center text-xs font-bold mb-8 uppercase tracking-widest">Panel de Administración</p>
-        
-        <div className="space-y-4">
-          <input 
-            type="email" placeholder="Correo electrónico" 
-            className="w-full bg-black border border-slate-800 rounded-2xl p-4 text-white outline-none focus:border-blue-600 transition-all font-bold"
-            value={email} onChange={e => setEmail(e.target.value)} required 
-          />
-          <input 
-            type="password" placeholder="Contraseña" 
-            className="w-full bg-black border border-slate-800 rounded-2xl p-4 text-white outline-none focus:border-blue-600 transition-all font-bold"
-            value={password} onChange={e => setPassword(e.target.value)} required 
-          />
-          <button 
-            type="submit" disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black uppercase italic tracking-widest transition-all shadow-lg shadow-blue-900/20 disabled:opacity-50"
+      <div className="w-full max-w-md animate-in fade-in zoom-in duration-500">
+        <form onSubmit={handleLogin} className="bg-slate-950 p-10 rounded-[3rem] border border-slate-900 shadow-2xl mb-6">
+          <div className="flex justify-center mb-6">
+             <div className="bg-blue-600/10 p-4 rounded-2xl">
+                <Monitor size={40} className="text-blue-500" />
+             </div>
+          </div>
+          <h2 className="text-4xl font-black text-white italic mb-1 text-center uppercase tracking-tighter">ZERO</h2>
+          <p className="text-slate-500 text-center text-[10px] font-bold mb-8 uppercase tracking-widest italic">Management System</p>
+          
+          <div className="space-y-4">
+            <input 
+              type="email" placeholder="Correo electrónico" 
+              className="w-full bg-black border border-slate-800 rounded-2xl p-4 text-white outline-none focus:border-blue-600 transition-all font-bold"
+              value={email} onChange={e => setEmail(e.target.value)} required 
+            />
+            <input 
+              type="password" placeholder="Contraseña" 
+              className="w-full bg-black border border-slate-800 rounded-2xl p-4 text-white outline-none focus:border-blue-600 transition-all font-bold"
+              value={password} onChange={e => setPassword(e.target.value)} required 
+            />
+            <button 
+              type="submit" disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black uppercase italic tracking-widest transition-all shadow-lg shadow-blue-900/20 disabled:opacity-50"
+            >
+              {loading ? 'Iniciando sesión...' : 'Entrar al Sistema'}
+            </button>
+          </div>
+        </form>
+
+        {/* Sección de Ventas / Contacto */}
+        <div className="bg-slate-950/50 border border-slate-900 p-6 rounded-[2rem] text-center">
+          <p className="text-slate-500 text-xs mb-3 font-bold uppercase tracking-tighter">¿Deseas adquirir una licencia?</p>
+          <a 
+            href="https://wa.me/51902257451?text=Hola!%20Deseo%20adquirir%20el%20plan%20mensual%20de%20Zero" 
+            target="_blank" 
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 text-blue-500 font-black uppercase text-xs hover:text-blue-400 transition-colors underline decoration-blue-500/30 underline-offset-4"
           >
-            {loading ? 'Cargando...' : 'Entrar al Sistema'}
-          </button>
+            <MessageCircle size={14} /> Contactar a Ventas
+          </a>
         </div>
-      </form>
+      </div>
     </div>
   );
 }
@@ -79,6 +94,9 @@ function App() {
   const [invTotales, setInvTotales] = useState(5);
 
   useEffect(() => {
+    // Cambio de nombre en la pestaña
+    document.title = "ZERO | CRM";
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) { fetchRegistros(session.user.id); fetchInventario(session.user.id); }
@@ -132,7 +150,6 @@ function App() {
 
   const cerrarModal = () => { setIsModalOpen(false); setEditId(null); setNombre(''); setWhatsapp(''); setServicio(''); setMonto(''); setVencimiento(''); };
 
-  // --- VISTA: INVENTARIO ---
   const InventarioView = () => (
     <div className="p-10 animate-in fade-in duration-500">
       <header className="flex justify-between items-center mb-10">
@@ -176,13 +193,14 @@ function App() {
     </div>
   );
 
-  // SI NO HAY SESIÓN, MOSTRAR LOGIN EN LUGAR DE PANTALLA NEGRA
   if (!session) return <AuthView />;
 
   return (
     <div className="min-h-screen bg-black text-slate-300 flex font-sans">
       <aside className="w-72 bg-slate-950 border-r border-slate-900 p-8 flex flex-col gap-10">
-        <h1 className="text-2xl font-black text-blue-500 italic flex items-center gap-3"><Monitor size={28}/> STREAMPRO</h1>
+        <h1 className="text-3xl font-black text-blue-500 italic flex items-center gap-3 tracking-tighter">
+          <Monitor size={28}/> ZERO
+        </h1>
         <nav className="flex-1 space-y-2">
           {[{ id: 'dashboard', label: 'Panel', icon: <LayoutDashboard size={20}/> }, { id: 'clientes', label: 'Clientes', icon: <Users size={20}/> }, { id: 'inventario', label: 'Inventario', icon: <Package size={20}/> }].map(item => (
             <button key={item.id} onClick={() => setVistaActual(item.id)} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-black italic transition-all ${vistaActual === item.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-600 hover:text-slate-300'}`}>
@@ -190,7 +208,7 @@ function App() {
             </button>
           ))}
         </nav>
-        <button onClick={() => supabase.auth.signOut()} className="flex items-center gap-3 text-red-500/50 p-4 font-black italic hover:text-red-400 mt-auto"><LogOut size={22}/> SALIR</button>
+        <button onClick={() => supabase.auth.signOut()} className="flex items-center gap-3 text-red-500/50 p-4 font-black italic hover:text-red-400 mt-auto transition-colors"><LogOut size={22}/> SALIR</button>
       </aside>
 
       <main className="flex-1 overflow-y-auto">
@@ -198,7 +216,7 @@ function App() {
           <div className="p-10 animate-in fade-in">
              <header className="flex justify-between items-end mb-10">
                 <div><h2 className="text-4xl font-black text-white italic uppercase tracking-tight">Panel Principal</h2></div>
-                <button onClick={() => setIsModalOpen(true)} className="bg-white text-black hover:bg-slate-200 px-8 py-4 rounded-2xl font-black uppercase text-xs flex items-center gap-2 shadow-xl">
+                <button onClick={() => setIsModalOpen(true)} className="bg-white text-black hover:bg-slate-200 px-8 py-4 rounded-2xl font-black uppercase text-xs flex items-center gap-2 shadow-xl transition-all">
                   <PlusCircle size={20}/> Nuevo Registro
                 </button>
              </header>
@@ -212,7 +230,7 @@ function App() {
                    </div>
                 </div>
                 <div className="space-y-6">
-                   <div className="bg-slate-950 border border-slate-900 p-7 rounded-[2rem] flex items-center justify-between border-l-4 border-l-emerald-500">
+                   <div className="bg-slate-950 border border-slate-900 p-7 rounded-[2rem] flex items-center justify-between border-l-4 border-l-emerald-500 shadow-xl shadow-emerald-500/5">
                       <div><p className="text-slate-500 text-[10px] font-black uppercase italic">Ventas Totales</p><h4 className="text-3xl font-black text-emerald-400 italic">S/. {registros.reduce((acc, c) => acc + (c.monto || 0), 0).toFixed(2)}</h4></div>
                       <DollarSign className="text-slate-800" size={32}/>
                    </div>
@@ -223,7 +241,7 @@ function App() {
 
         {vistaActual === 'clientes' && (
            <div className="p-10 animate-in fade-in">
-              <header className="flex justify-between items-center mb-10"><h2 className="text-4xl font-black text-white italic uppercase">Clientes</h2><div className="relative w-80"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18}/><input type="text" placeholder="Buscar cliente..." className="w-full bg-slate-950 border border-slate-900 rounded-2xl py-4 pl-12 text-sm text-white outline-none focus:border-blue-600 italic font-bold" onChange={(e) => setFiltro(e.target.value)} /></div></header>
+              <header className="flex justify-between items-center mb-10"><h2 className="text-4xl font-black text-white italic uppercase tracking-tighter">Clientes</h2><div className="relative w-80"><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18}/><input type="text" placeholder="Buscar cliente..." className="w-full bg-slate-950 border border-slate-900 rounded-2xl py-4 pl-12 text-sm text-white outline-none focus:border-blue-600 italic font-bold" onChange={(e) => setFiltro(e.target.value)} /></div></header>
               <div className="bg-slate-950 border border-slate-900 rounded-[2.5rem] overflow-hidden">
                 <table className="w-full text-left">
                   <tbody className="divide-y divide-slate-900">
@@ -247,38 +265,37 @@ function App() {
         {vistaActual === 'inventario' && <InventarioView />}
       </main>
 
-      {/* MODAL INVENTARIO */}
+      {/* MODALES IGUAL QUE ANTES PERO CON ESTILO ZERO */}
       {isInvModalOpen && (
-        <div className="fixed inset-0 bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 z-50">
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 z-50 animate-in fade-in zoom-in duration-300">
           <div className="bg-slate-950 border border-slate-800 p-10 rounded-[3rem] w-full max-w-lg shadow-2xl">
-            <div className="flex justify-between items-center mb-8"><h3 className="text-2xl font-black italic text-white uppercase">Nueva Cuenta</h3><button onClick={() => setIsInvModalOpen(false)} className="text-slate-500 hover:text-white"><X size={24}/></button></div>
+            <div className="flex justify-between items-center mb-8"><h3 className="text-2xl font-black italic text-white uppercase tracking-tighter">Nueva Cuenta</h3><button onClick={() => setIsInvModalOpen(false)} className="text-slate-500 hover:text-white"><X size={24}/></button></div>
             <form onSubmit={handleGuardarInventario} className="grid grid-cols-2 gap-4">
-              <input required value={invCorreo} onChange={e => setInvCorreo(e.target.value)} className="col-span-2 bg-black border border-slate-800 rounded-2xl p-4 text-white italic font-bold outline-none focus:border-blue-600" placeholder="Correo" />
-              <input required value={invPass} onChange={e => setInvPass(e.target.value)} className="col-span-2 bg-black border border-slate-800 rounded-2xl p-4 text-white italic font-bold outline-none focus:border-blue-600" placeholder="Contraseña" />
-              <select required value={invServicio} onChange={e => setInvServicio(e.target.value)} className="bg-black border border-slate-800 rounded-2xl p-4 text-white italic font-bold outline-none focus:border-blue-600">
+              <input required value={invCorreo} onChange={e => setInvCorreo(e.target.value)} className="col-span-2 bg-black border border-slate-800 rounded-2xl p-4 text-white italic font-bold outline-none focus:border-blue-600 transition-all" placeholder="Correo" />
+              <input required value={invPass} onChange={e => setInvPass(e.target.value)} className="col-span-2 bg-black border border-slate-800 rounded-2xl p-4 text-white italic font-bold outline-none focus:border-blue-600 transition-all" placeholder="Contraseña" />
+              <select required value={invServicio} onChange={e => setInvServicio(e.target.value)} className="bg-black border border-slate-800 rounded-2xl p-4 text-white italic font-bold outline-none focus:border-blue-600 transition-all">
                 <option value="">Servicio...</option><option value="Netflix">Netflix</option><option value="Disney+">Disney+</option><option value="Spotify">Spotify</option><option value="HBO Max">HBO Max</option>
               </select>
-              <input required type="number" value={invTotales} onChange={e => setInvTotales(e.target.value)} className="bg-black border border-slate-800 rounded-2xl p-4 text-white italic font-bold outline-none focus:border-blue-600" placeholder="Perfiles" />
-              <button type="submit" className="col-span-2 bg-blue-600 hover:bg-blue-500 py-5 rounded-2xl font-black uppercase mt-4 italic tracking-widest shadow-lg shadow-blue-900/40">Guardar</button>
+              <input required type="number" value={invTotales} onChange={e => setInvTotales(e.target.value)} className="bg-black border border-slate-800 rounded-2xl p-4 text-white italic font-bold outline-none focus:border-blue-600 transition-all" placeholder="Perfiles" />
+              <button type="submit" className="col-span-2 bg-blue-600 hover:bg-blue-500 py-5 rounded-2xl font-black uppercase mt-4 italic tracking-widest shadow-lg shadow-blue-900/40 transition-all">Guardar</button>
             </form>
           </div>
         </div>
       )}
 
-      {/* MODAL CLIENTES */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 z-50">
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 z-50 animate-in fade-in zoom-in duration-300">
           <div className="bg-slate-950 border border-slate-800 p-10 rounded-[3rem] w-full max-w-xl">
-            <div className="flex justify-between items-center mb-8"><h3 className="text-3xl font-black italic text-white uppercase">{editId ? 'Editar Cliente' : 'Nueva Venta'}</h3><button onClick={cerrarModal} className="text-slate-500 hover:text-white"><X size={24}/></button></div>
+            <div className="flex justify-between items-center mb-8"><h3 className="text-3xl font-black italic text-white uppercase tracking-tighter">{editId ? 'Editar Registro' : 'Nueva Venta'}</h3><button onClick={cerrarModal} className="text-slate-500 hover:text-white"><X size={24}/></button></div>
             <form onSubmit={handleGuardarCliente} className="grid grid-cols-2 gap-4">
-              <input required value={nombre} onChange={e => setNombre(e.target.value)} className="col-span-2 bg-black border border-slate-800 rounded-2xl p-4 text-white italic font-bold outline-none focus:border-blue-600" placeholder="Nombre" />
-              <input required value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className="col-span-2 bg-black border border-slate-800 rounded-2xl p-4 text-white italic font-bold outline-none focus:border-blue-600" placeholder="WhatsApp" />
-              <select required value={servicio} onChange={e => setServicio(e.target.value)} className="bg-black border border-slate-800 rounded-2xl p-4 text-white italic font-bold outline-none focus:border-blue-600">
+              <input required value={nombre} onChange={e => setNombre(e.target.value)} className="col-span-2 bg-black border border-slate-800 rounded-2xl p-4 text-white italic font-bold outline-none focus:border-blue-600 transition-all" placeholder="Nombre" />
+              <input required value={whatsapp} onChange={e => setWhatsapp(e.target.value)} className="bg-black border border-slate-800 rounded-2xl p-4 text-white italic font-bold outline-none focus:border-blue-600 transition-all" placeholder="WhatsApp" />
+              <select required value={servicio} onChange={e => setServicio(e.target.value)} className="bg-black border border-slate-800 rounded-2xl p-4 text-white italic font-bold outline-none focus:border-blue-600 transition-all">
                 <option value="">Servicio...</option><option value="Netflix">Netflix</option><option value="Disney+">Disney+</option><option value="Spotify">Spotify</option><option value="HBO Max">HBO Max</option>
               </select>
-              <input required type="number" step="0.01" value={monto} onChange={e => setMonto(e.target.value)} className="bg-black border border-slate-800 rounded-2xl p-4 text-white italic font-bold outline-none focus:border-blue-600" placeholder="Monto S/." />
-              <input required type="date" value={vencimiento} onChange={e => setVencimiento(e.target.value)} className="bg-black border border-slate-800 rounded-2xl p-4 text-slate-500 italic font-bold outline-none focus:border-blue-600" />
-              <button type="submit" className="col-span-2 bg-blue-600 hover:bg-blue-500 py-5 rounded-2xl font-black uppercase mt-4 italic shadow-lg shadow-blue-900/40">Confirmar</button>
+              <input required type="number" step="0.01" value={monto} onChange={e => setMonto(e.target.value)} className="bg-black border border-slate-800 rounded-2xl p-4 text-white italic font-bold outline-none focus:border-blue-600 transition-all" placeholder="Monto S/." />
+              <input required type="date" value={vencimiento} onChange={e => setVencimiento(e.target.value)} className="bg-black border border-slate-800 rounded-2xl p-4 text-slate-500 italic font-bold outline-none focus:border-blue-600 transition-all" />
+              <button type="submit" className="col-span-2 bg-blue-600 hover:bg-blue-500 py-5 rounded-2xl font-black uppercase mt-4 italic shadow-lg shadow-blue-900/40 transition-all">Confirmar Registro</button>
             </form>
           </div>
         </div>
