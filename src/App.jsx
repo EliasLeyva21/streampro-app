@@ -3,9 +3,8 @@ import { supabase } from './supabaseClient';
 import {
   LayoutDashboard, PlusCircle, X, LogOut, Monitor,
   Users, DollarSign, Search, Package, Edit3, Trash2,
-  Key, Mail, MessageCircle, Settings, RefreshCw,
-  PanelLeftClose, PanelLeftOpen, Eye, EyeOff, Save, Clock, Calendar,
-  ShieldAlert, Crown
+  Settings, RefreshCw, PanelLeftClose, PanelLeftOpen,
+  Eye, EyeOff, Save, Clock, ShieldAlert, Crown
 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 
@@ -122,7 +121,6 @@ function App() {
     if (inv.data) setInventario(inv.data);
   }, []);
 
-  // --- VERIFICACIÓN DE SUSCRIPCIÓN (MEJORADA) ---
   const verificarSuscripcion = useCallback(async (userId) => {
     try {
       const { data, error } = await supabase
@@ -134,7 +132,6 @@ function App() {
       if (error) throw error;
 
       if (!data) {
-        console.warn('Perfil no encontrado para el usuario:', userId);
         setSesionActiva(false);
         return;
       }
@@ -153,12 +150,10 @@ function App() {
         setSesionActiva(true);
       }
     } catch (err) {
-      console.error('Error verificando suscripción:', err.message);
       setSesionActiva(false);
     }
   }, []);
 
-  // --- CARGAR VENDEDORES (solo admin) ---
   const cargarVendedores = useCallback(async () => {
     const { data } = await supabase
       .from('perfiles_vendedores')
@@ -167,7 +162,6 @@ function App() {
     if (data) setVendedores(data);
   }, []);
 
-  // --- CAMBIAR ESTADO DE VENDEDOR ---
   const cambiarEstado = async (vendedorId, estadoActual) => {
     const nuevoEstado = estadoActual === 'activo' ? 'inactivo' : 'activo';
     const { error } = await supabase
@@ -297,8 +291,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#050509] text-slate-300 flex font-sans overflow-hidden select-none">
-
-      {/* SIDEBAR */}
       <aside className={`bg-black/20 backdrop-blur-3xl border-r border-white/5 flex flex-col transition-all duration-500 z-30 ${isSidebarOpen ? 'w-72' : 'w-0 opacity-0 overflow-hidden'}`}>
         <div className="p-10 flex flex-col h-full">
           <div className="flex items-center gap-4 mb-16 px-2 text-white italic font-black text-2xl tracking-tighter">
@@ -331,7 +323,6 @@ function App() {
       </aside>
 
       <main className="flex-1 overflow-y-auto px-12 py-10 relative bg-[#080811]">
-
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           className={`fixed top-14 z-50 bg-white/5 p-3 rounded-2xl border border-white/10 text-slate-500 hover:text-white hover:bg-white/10 transition-all shadow-2xl backdrop-blur-md ${isSidebarOpen ? 'left-80' : 'left-10'}`}
@@ -339,7 +330,6 @@ function App() {
           {isSidebarOpen ? <PanelLeftClose size={22} /> : <PanelLeftOpen size={22} />}
         </button>
 
-        {/* DASHBOARD */}
         {vistaActual === 'dashboard' && (
           <div className="animate-in fade-in duration-700 max-w-7xl mx-auto">
             <header className="mb-12 pt-4 flex items-center gap-4">
@@ -373,7 +363,6 @@ function App() {
           </div>
         )}
 
-        {/* CLIENTES */}
         {vistaActual === 'clientes' && (
           <div className="animate-in fade-in duration-500 max-w-7xl mx-auto">
             <header className="flex justify-between items-center mb-6 pt-4">
@@ -444,7 +433,6 @@ function App() {
           </div>
         )}
 
-        {/* STOCK */}
         {vistaActual === 'stock' && (
           <div className="animate-in fade-in duration-500 max-w-5xl mx-auto">
             <header className="flex justify-between items-center mb-12 pt-4">
@@ -466,7 +454,6 @@ function App() {
           </div>
         )}
 
-        {/* FINANZAS */}
         {vistaActual === 'finanzas' && (
           <div className="animate-in fade-in duration-500 max-w-5xl mx-auto">
             <h2 className="text-5xl font-black text-white italic uppercase mb-12 pt-4 tracking-tighter">Historial</h2>
@@ -484,7 +471,6 @@ function App() {
           </div>
         )}
 
-        {/* PANEL ADMIN */}
         {vistaActual === 'admin' && esAdmin && (
           <div className="animate-in fade-in duration-500 max-w-5xl mx-auto">
             <header className="flex justify-between items-center mb-12 pt-4">
@@ -569,7 +555,6 @@ function App() {
           </div>
         )}
 
-        {/* AJUSTES */}
         {vistaActual === 'ajustes' && (
           <div className="animate-in fade-in duration-500 max-w-4xl mx-auto">
             <h2 className="text-5xl font-black text-white italic uppercase mb-12 pt-4 tracking-tighter">Ajustes</h2>
@@ -605,7 +590,6 @@ function App() {
         )}
       </main>
 
-      {/* MODAL CLIENTE */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 z-50 animate-in zoom-in duration-300">
           <div className="bg-[#0a0a0f] border border-white/10 p-12 rounded-[3.5rem] w-full max-w-xl">
@@ -631,7 +615,6 @@ function App() {
         </div>
       )}
 
-      {/* MODAL STOCK */}
       {isInvModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 z-50 animate-in zoom-in duration-300">
           <div className="bg-[#0a0a0f] border border-white/10 p-12 rounded-[3.5rem] w-full max-w-md text-white text-center">
