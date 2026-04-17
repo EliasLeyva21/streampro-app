@@ -4,7 +4,7 @@ import {
   LayoutDashboard, PlusCircle, X, LogOut, Monitor, 
   Users, DollarSign, Search, Package, Edit3, Trash2, 
   Key, Mail, MessageCircle, Settings, RefreshCw, 
-  PanelLeftClose, PanelLeftOpen, Eye, EyeOff, Clock
+  PanelLeftClose, PanelLeftOpen, Eye, EyeOff, Save
 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 
@@ -56,7 +56,6 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isInvModalOpen, setIsInvModalOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [showPass, setShowPass] = useState(false);
   
   // Datos
   const [registros, setRegistros] = useState([]);
@@ -64,8 +63,11 @@ function App() {
   const [ventasHistoricas, setVentasHistoricas] = useState([]);
   const [filtro, setFiltro] = useState('');
 
-  // Perfil Persistente
+  // Perfil y Ajustes
   const [userName, setUserName] = useState(() => localStorage.getItem('zero_user_name') || 'ADMIN ZERO');
+  const [newPassword, setNewPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
+  const [updatingPass, setUpdatingPass] = useState(false);
 
   // Form Clientes
   const [editId, setEditId] = useState(null);
@@ -98,12 +100,27 @@ function App() {
     return () => subscription.unsubscribe();
   }, [cargarTodo]);
 
-  // Guardar nombre en LocalStorage
   useEffect(() => {
     localStorage.setItem('zero_user_name', userName);
   }, [userName]);
 
   // --- MANEJADORES ---
+  const handleActualizarPassword = async () => {
+    if (newPassword.length < 6) {
+      alert("La contraseña debe tener al menos 6 caracteres.");
+      return;
+    }
+    setUpdatingPass(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      alert("Error: " + error.message);
+    } else {
+      alert("¡Contraseña actualizada correctamente!");
+      setNewPassword('');
+    }
+    setUpdatingPass(false);
+  };
+
   const handleGuardarCliente = async (e) => {
     e.preventDefault();
     const payload = { 
@@ -163,7 +180,6 @@ function App() {
     setSession(null);
   };
 
-  // Filtros y Cálculos
   const esAtrasado = (f) => new Date(f) < new Date();
   const proximosAVencer = registros.filter(r => {
     const diff = new Date(r.fecha_vencimiento) - new Date();
@@ -226,7 +242,7 @@ function App() {
 
         {/* --- CLIENTES --- */}
         {vistaActual === 'clientes' && (
-           <div className="p-16 animate-in fade-in">
+            <div className="p-16 animate-in fade-in">
               <header className="flex flex-wrap justify-between items-center gap-6 mb-12 pt-2 border-b border-slate-900 pb-8">
                 <h2 className="text-4xl font-black text-white italic uppercase tracking-tighter">Clientes</h2>
                 <div className="flex gap-4">
@@ -260,12 +276,12 @@ function App() {
                   </div>
                 ))}
               </div>
-           </div>
+            </div>
         )}
 
         {/* --- STOCK --- */}
         {vistaActual === 'stock' && (
-           <div className="p-16 animate-in fade-in">
+            <div className="p-16 animate-in fade-in">
               <header className="flex justify-between items-center mb-12 border-b border-slate-900 pb-8">
                 <h2 className="text-4xl font-black text-white italic uppercase tracking-tighter">Inventario</h2>
                 <button onClick={() => setIsInvModalOpen(true)} className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black uppercase text-[10px] shadow-lg shadow-blue-900/30 tracking-widest">+ Inversión</button>
@@ -281,12 +297,12 @@ function App() {
                   </div>
                 ))}
               </div>
-           </div>
+            </div>
         )}
 
         {/* --- FINANZAS --- */}
         {vistaActual === 'finanzas' && (
-           <div className="p-16 animate-in fade-in max-w-5xl">
+            <div className="p-16 animate-in fade-in max-w-5xl">
               <h2 className="text-4xl font-black text-white italic uppercase mb-12 border-b border-slate-900 pb-8">Historial</h2>
               <div className="space-y-3">
                 {ventasHistoricas.map(v => (
@@ -299,7 +315,7 @@ function App() {
                   </div>
                 ))}
               </div>
-           </div>
+            </div>
         )}
 
         {/* --- AJUSTES --- */}
@@ -320,17 +336,38 @@ function App() {
                     </div>
                   </div>
                   <div className="space-y-2 text-white">
-                    <label className="text-[10px] font-black text-slate-500 uppercase italic tracking-widest ml-2">Clave de Acceso</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase italic tracking-widest ml-2">Establecer Nueva Contraseña</label>
                     <div className="relative">
                       <Key className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-700" size={16}/>
-                      <input type={showPass ? "text" : "password"} readOnly value="123456" className="w-full bg-black/40 border border-slate-900 rounded-2xl py-4 pl-14 text-sm font-bold text-slate-500 outline-none" />
+                      <input 
+                        type={showPass ? "text" : "password"} 
+                        placeholder="Mínimo 6 caracteres"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full bg-black border border-slate-800 rounded-2xl py-4 pl-14 pr-14 text-sm font-bold text-white outline-none focus:border-blue-600 transition-all" 
+                      />
                       <button onClick={() => setShowPass(!showPass)} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-600 hover:text-white transition-colors">
                         {showPass ? <EyeOff size={18}/> : <Eye size={18}/>}
                       </button>
                     </div>
                   </div>
                 </div>
-                <button onClick={() => alert('¡Preferencias guardadas!')} className="bg-white text-black py-5 rounded-2xl w-full font-black uppercase italic tracking-widest text-xs hover:bg-blue-600 hover:text-white transition-all shadow-xl shadow-white/5">Guardar Configuración</button>
+                <div className="pt-4 space-y-4">
+                  <button 
+                    disabled={updatingPass}
+                    onClick={handleActualizarPassword} 
+                    className="bg-blue-600 text-white py-5 rounded-2xl w-full font-black uppercase italic tracking-widest text-xs hover:bg-blue-500 transition-all shadow-xl shadow-blue-900/20 flex items-center justify-center gap-2"
+                  >
+                    <RefreshCw size={14} className={updatingPass ? 'animate-spin' : ''}/> 
+                    {updatingPass ? 'ACTUALIZANDO...' : 'Actualizar Contraseña Real'}
+                  </button>
+                  <button 
+                    onClick={() => alert('¡Preferencias de nombre guardadas!')} 
+                    className="bg-white text-black py-5 rounded-2xl w-full font-black uppercase italic tracking-widest text-xs hover:bg-slate-200 transition-all shadow-xl shadow-white/5 flex items-center justify-center gap-2"
+                  >
+                    <Save size={14}/> Guardar Nombre de Admin
+                  </button>
+                </div>
             </div>
           </div>
         )}
