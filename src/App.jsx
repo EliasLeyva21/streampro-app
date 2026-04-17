@@ -27,7 +27,7 @@ function AuthView() {
         <form onSubmit={handleLogin} className="bg-slate-950 p-10 rounded-[3rem] border border-slate-900 shadow-2xl flex flex-col items-center">
           <div className="w-32 h-32 mb-8 flex items-center justify-center overflow-hidden rounded-2xl shadow-2xl shadow-blue-500/10 border border-slate-800 bg-white">
             <img 
-              src="https://fuxshvghqjizfxtggrle.supabase.co/storage/v1/object/public/assets/marca_personal.png" 
+              src="https://nzsxqmkhbzwpxjwwysnq.supabase.co/storage/v1/object/public/assets/WhatsApp%20Image%202026-04-16%20at%208.14.02%20PM.jpeg" 
               alt="Logo Zero" 
               className="w-full h-full object-contain p-2"
             />
@@ -39,7 +39,7 @@ function AuthView() {
             <input type="password" placeholder="Contraseña" className="w-full bg-black border border-slate-800 rounded-2xl p-4 text-white outline-none focus:border-blue-600 transition-all font-bold text-sm" value={password} onChange={e => setPassword(e.target.value)} required />
             <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black uppercase italic tracking-widest transition-all shadow-lg shadow-blue-900/20">{loading ? '...' : 'ENTRAR'}</button>
           </div>
-          <a href="https://wa.me/519XXXXXXXX" target="_blank" className="flex items-center gap-2 text-[10px] font-black text-emerald-500 hover:text-emerald-400 uppercase tracking-widest transition-all italic tracking-tighter">
+          <a href="https://wa.me/51902257451" target="_blank" className="flex items-center gap-2 text-[10px] font-black text-emerald-500 hover:text-emerald-400 uppercase tracking-widest transition-all italic tracking-tighter">
             <MessageCircle size={14}/> SOPORTE VENTAS
           </a>
         </form>
