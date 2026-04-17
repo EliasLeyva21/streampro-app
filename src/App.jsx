@@ -4,8 +4,7 @@ import {
   LayoutDashboard, PlusCircle, X, LogOut, Monitor, 
   Users, DollarSign, Search, Package, Edit3, Trash2, 
   Key, Mail, MessageCircle, Settings, RefreshCw, 
-  PanelLeftClose, PanelLeftOpen, Eye, EyeOff, Save, TrendingUp,
-  Clock // <-- ESTO FALTABA Y CAUSABA LA PANTALLA BLANCA
+  PanelLeftClose, PanelLeftOpen, Eye, EyeOff, Save, Clock
 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer, XAxis, Tooltip } from 'recharts';
 
@@ -19,14 +18,13 @@ function AuthView() {
     e.preventDefault();
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) alert("Error: " + error.message);
+    if (error) alert("Error de acceso: " + error.message);
     setLoading(false);
   };
 
   return (
     <div className="min-h-screen bg-[#020205] flex items-center justify-center p-6 text-white relative overflow-hidden">
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 blur-[120px] rounded-full"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-600/10 blur-[120px] rounded-full"></div>
       <div className="w-full max-w-md z-10 animate-in fade-in zoom-in duration-700">
         <form onSubmit={handleLogin} className="bg-white/[0.02] backdrop-blur-2xl p-12 rounded-[3.5rem] border border-white/10 shadow-2xl flex flex-col items-center text-center">
           <div className="w-24 h-24 mb-6 bg-white rounded-3xl p-4 shadow-2xl flex items-center justify-center">
@@ -34,13 +32,16 @@ function AuthView() {
           </div>
           <h2 className="text-4xl font-black italic mb-1 bg-clip-text text-transparent bg-gradient-to-b from-white to-slate-500 uppercase tracking-tighter">ZERO</h2>
           <p className="text-blue-400/50 text-[10px] font-black mb-10 uppercase tracking-[0.3em] italic">Intelligence Management</p>
-          <div className="space-y-4 w-full">
+          <div className="space-y-4 w-full mb-6">
             <input type="email" placeholder="Email" className="w-full bg-white/[0.03] border border-white/5 rounded-2xl p-4 text-white outline-none focus:border-blue-500/50 transition-all font-bold" value={email} onChange={e => setEmail(e.target.value)} required />
             <input type="password" placeholder="Contraseña" className="w-full bg-white/[0.03] border border-white/5 rounded-2xl p-4 text-white outline-none focus:border-blue-500/50 transition-all font-bold" value={password} onChange={e => setPassword(e.target.value)} required />
             <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 text-white py-5 rounded-2xl font-black uppercase italic tracking-widest transition-all shadow-xl active:scale-95">
-              {loading ? 'CARGANDO...' : 'ENTRAR'}
+              {loading ? 'INICIANDO...' : 'ENTRAR'}
             </button>
           </div>
+          <a href="https://wa.me/51902257451" target="_blank" rel="noreferrer" className="flex items-center gap-2 text-[10px] font-black text-emerald-500 hover:text-emerald-400 uppercase tracking-widest transition-all italic">
+            <MessageCircle size={14}/> SOPORTE VENTAS
+          </a>
         </form>
       </div>
     </div>
@@ -62,6 +63,7 @@ function App() {
   const [userName, setUserName] = useState(() => localStorage.getItem('zero_user_name') || 'ADMIN ZERO');
   const [newPassword, setNewPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
+  const [updatingPass, setUpdatingPass] = useState(false);
 
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState({ nombre: '', whatsapp: '', servicio: '', monto: '', vencimiento: '' });
@@ -92,19 +94,23 @@ function App() {
 
   useEffect(() => { localStorage.setItem('zero_user_name', userName); }, [userName]);
 
-  // Lógica de Guardado
+  const handleActualizarPassword = async () => {
+    if (newPassword.length < 6) { alert("Mínimo 6 caracteres."); return; }
+    setUpdatingPass(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) alert("Error: " + error.message);
+    else { alert("¡Contraseña actualizada!"); setNewPassword(''); }
+    setUpdatingPass(false);
+  };
+
   const handleGuardarCliente = async (e) => {
     e.preventDefault();
     const payload = { nombre_negocio: form.nombre, whatsapp: form.whatsapp, servicio: form.servicio, monto: parseFloat(form.monto), fecha_vencimiento: form.vencimiento, user_id: session.user.id };
     let result = editId ? await supabase.from('proveedores').update(payload).eq('id', editId) : await supabase.from('proveedores').insert([payload]).select();
-    if (!editId && !result.error) await supabase.from('ventas').insert([{ cliente_id: result.data[0].id, monto: parseFloat(form.monto), metodo_pago: 'Venta', user_id: session.user.id }]);
+    if (!editId && !result.error && result.data) {
+        await supabase.from('ventas').insert([{ cliente_id: result.data[0].id, monto: parseFloat(form.monto), metodo_pago: 'Venta', user_id: session.user.id }]);
+    }
     if (result.error) alert(result.error.message); else { cerrarModal(); cargarTodo(session.user.id); }
-  };
-
-  const handleGuardarInventario = async (e) => {
-    e.preventDefault();
-    const { error } = await supabase.from('inventario').insert([{ ...invForm, costo: parseFloat(invForm.costo), user_id: session.user.id }]);
-    if (error) alert(error.message); else { setInvForm({ servicio: '', costo: '' }); setIsInvModalOpen(false); cargarTodo(session.user.id); }
   };
 
   const handleRenovacion = async (c) => {
@@ -116,23 +122,27 @@ function App() {
   const abrirEdicion = (c) => { setEditId(c.id); setForm({ nombre: c.nombre_negocio, whatsapp: c.whatsapp, servicio: c.servicio, monto: c.monto, vencimiento: c.fecha_vencimiento }); setIsModalOpen(true); };
   const cerrarModal = () => { setIsModalOpen(false); setEditId(null); setForm({ nombre: '', whatsapp: '', servicio: '', monto: '', vencimiento: '' }); };
   const esAtrasado = (f) => new Date(f) < new Date();
+  const proximosAVencer = registros.filter(r => {
+    const diff = new Date(r.fecha_vencimiento) - new Date();
+    return diff > 0 && diff < (3 * 24 * 60 * 60 * 1000);
+  });
 
   if (!session) return <AuthView />;
 
   return (
-    <div className="min-h-screen bg-[#050509] text-slate-300 flex font-sans overflow-hidden">
+    <div className="min-h-screen bg-[#050509] text-slate-300 flex font-sans overflow-hidden select-none">
       {/* SIDEBAR */}
       <aside className={`bg-black/20 backdrop-blur-3xl border-r border-white/5 flex flex-col transition-all duration-500 z-30 ${isSidebarOpen ? 'w-72' : 'w-0 opacity-0 overflow-hidden'}`}>
         <div className="p-10 flex flex-col h-full">
-            <div className="flex items-center gap-4 mb-16 px-2">
-                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg"><Monitor size={20} className="text-white"/></div>
-                <h1 className="text-2xl font-black text-white italic tracking-tighter">ZERO</h1>
+            <div className="flex items-center gap-4 mb-16 px-2 text-white italic font-black text-2xl tracking-tighter">
+                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg"><Monitor size={20}/></div>
+                ZERO
             </div>
             <nav className="flex-1 space-y-3">
               {[
-                { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20}/> },
+                { id: 'dashboard', label: 'Panel', icon: <LayoutDashboard size={20}/> },
                 { id: 'clientes', label: 'Clientes', icon: <Users size={20}/> },
-                { id: 'stock', label: 'Inventario', icon: <Package size={20}/> },
+                { id: 'stock', label: 'Stock', icon: <Package size={20}/> },
                 { id: 'finanzas', label: 'Finanzas', icon: <DollarSign size={20}/> },
                 { id: 'ajustes', label: 'Ajustes', icon: <Settings size={20}/> }
               ].map(item => (
@@ -147,8 +157,8 @@ function App() {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto px-12 py-10 relative">
-        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="fixed top-12 left-8 z-40 bg-white/5 p-2 rounded-xl border border-white/5 shadow-xl text-slate-500 hover:text-white transition-all">
+      <main className="flex-1 overflow-y-auto px-12 py-10 relative bg-[#080811]">
+        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="fixed top-12 left-8 z-40 bg-white/5 p-2 rounded-xl border border-white/5 text-slate-500 hover:text-white transition-all">
             {isSidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
         </button>
 
@@ -156,12 +166,11 @@ function App() {
         {vistaActual === 'dashboard' && (
           <div className="animate-in fade-in duration-700 max-w-7xl mx-auto">
              <header className="mb-12">
-                <p className="text-blue-500 font-black text-[10px] uppercase tracking-[0.3em] mb-2">Resumen General</p>
-                <h2 className="text-5xl font-black text-white italic uppercase tracking-tighter">Panel Principal</h2>
+                <h2 className="text-5xl font-black text-white italic uppercase tracking-tighter">Dashboard</h2>
              </header>
              <div className="grid grid-cols-12 gap-6">
                 <div className="col-span-12 lg:col-span-8 bg-white/[0.03] border border-white/10 p-8 rounded-[3rem] h-80">
-                   <p className="text-slate-400 text-[10px] font-black uppercase italic mb-8 tracking-widest">Actividad de Ventas</p>
+                   <p className="text-slate-400 text-[10px] font-black uppercase italic mb-8 tracking-widest">Ingresos Recientes</p>
                    <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={ventasHistoricas.slice(0,10).reverse()}>
                         <Area type="monotone" dataKey="monto" stroke="#3b82f6" fill="#3b82f633" strokeWidth={4} />
@@ -169,13 +178,13 @@ function App() {
                    </ResponsiveContainer>
                 </div>
                 <div className="col-span-12 lg:col-span-4 grid gap-6">
-                    <div className="bg-blue-600 p-8 rounded-[3rem] shadow-xl shadow-blue-900/20">
-                        <p className="text-blue-200 text-[10px] font-black uppercase mb-2">Ingresos Totales</p>
-                        <h4 className="text-4xl font-black text-white italic">S/. {ventasHistoricas.reduce((acc, c) => acc + (c.monto || 0), 0)}</h4>
+                    <div className="bg-blue-600 p-8 rounded-[3rem] shadow-xl">
+                        <p className="text-blue-200 text-[10px] font-black uppercase mb-2 italic">Total Recaudado</p>
+                        <h4 className="text-4xl font-black text-white italic">S/. {ventasHistoricas.reduce((acc, c) => acc + (c.monto || 0), 0).toFixed(2)}</h4>
                     </div>
-                    <div className="bg-white/[0.03] border border-white/10 p-8 rounded-[3rem]">
-                        <p className="text-slate-500 text-[10px] font-black uppercase mb-2">Clientes Activos</p>
-                        <h4 className="text-4xl font-black text-white italic">{registros.length}</h4>
+                    <div className="bg-white/[0.03] border border-white/10 p-8 rounded-[3rem] border-l-4 border-l-orange-500">
+                        <p className="text-slate-500 text-[10px] font-black uppercase mb-2 italic">Próximos Vencimientos</p>
+                        <h4 className="text-4xl font-black text-white italic">{proximosAVencer.length} <span className="text-xs text-slate-500">Pers.</span></h4>
                     </div>
                 </div>
              </div>
@@ -187,19 +196,25 @@ function App() {
             <div className="animate-in fade-in duration-500 max-w-7xl mx-auto">
               <header className="flex justify-between items-center mb-12">
                 <h2 className="text-5xl font-black text-white italic uppercase tracking-tighter">Cartera</h2>
-                <button onClick={() => setIsModalOpen(true)} className="bg-white text-black px-8 py-4 rounded-2xl font-black uppercase text-xs flex items-center gap-3 hover:bg-blue-600 hover:text-white transition-all">
-                  <PlusCircle size={18}/> Nueva Venta
-                </button>
+                <div className="flex gap-4">
+                  <div className="relative w-64">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={16}/>
+                    <input type="text" placeholder="Buscar..." className="w-full bg-white/5 border border-white/5 rounded-2xl py-3 pl-12 text-xs font-bold outline-none focus:border-white/20" onChange={(e) => setFiltro(e.target.value)} />
+                  </div>
+                  <button onClick={() => setIsModalOpen(true)} className="bg-white text-black px-8 py-4 rounded-2xl font-black uppercase text-xs flex items-center gap-3 hover:bg-blue-600 hover:text-white transition-all">
+                    <PlusCircle size={18}/> Nuevo
+                  </button>
+                </div>
               </header>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {registros.filter(r => r.nombre_negocio.toLowerCase().includes(filtro.toLowerCase())).map(item => (
                   <div key={item.id} className="bg-white/[0.02] border border-white/5 p-8 rounded-[3rem] hover:border-blue-500/30 transition-all group">
                     <div className="flex justify-between items-start mb-6">
-                        <h3 className="font-black text-white italic text-2xl uppercase group-hover:text-blue-400 transition-colors">{item.nombre_negocio}</h3>
-                        <span className="text-xl font-black text-white">S/. {item.monto}</span>
-                    </div>
-                    <div className="flex items-center gap-2 mb-8">
-                      <div className="px-3 py-1 bg-blue-500/10 text-blue-500 rounded-full text-[10px] font-black uppercase tracking-widest">{item.servicio}</div>
+                        <div>
+                            <h3 className="font-black text-white italic text-2xl uppercase group-hover:text-blue-400 transition-colors">{item.nombre_negocio}</h3>
+                            <div className="text-[10px] font-black text-blue-500 uppercase italic tracking-widest mt-1">{item.servicio}</div>
+                        </div>
+                        <span className="text-xl font-black text-white">S/. {item.monto?.toFixed(2)}</span>
                     </div>
                     <div className="flex items-center justify-between border-t border-white/5 pt-6">
                        <div className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${esAtrasado(item.fecha_vencimiento) ? 'text-red-500' : 'text-emerald-500'}`}>
@@ -208,6 +223,7 @@ function App() {
                        <div className="flex gap-2">
                           <button onClick={() => abrirEdicion(item)} className="p-2 text-slate-500 hover:text-white transition-colors"><Edit3 size={16}/></button>
                           <button onClick={() => handleRenovacion(item)} className="p-2 text-emerald-500 hover:scale-110 transition-all"><RefreshCw size={16}/></button>
+                          <button onClick={() => { if(window.confirm('¿Eliminar?')) supabase.from('proveedores').delete().eq('id', item.id).then(() => cargarTodo(session.user.id))}} className="p-2 text-red-500/50 hover:text-red-500"><Trash2 size={16}/></button>
                        </div>
                     </div>
                   </div>
@@ -216,34 +232,24 @@ function App() {
             </div>
         )}
 
-        {/* INVENTARIO */}
+        {/* STOCK */}
         {vistaActual === 'stock' && (
           <div className="animate-in fade-in duration-500 max-w-5xl mx-auto">
             <header className="flex justify-between items-center mb-12">
-              <h2 className="text-5xl font-black text-white italic uppercase tracking-tighter">Inventario</h2>
-              <button onClick={() => setIsInvModalOpen(true)} className="bg-white text-black px-8 py-4 rounded-2xl font-black uppercase text-xs">Añadir Stock</button>
+              <h2 className="text-5xl font-black text-white italic uppercase tracking-tighter">Stock</h2>
+              <button onClick={() => setIsInvModalOpen(true)} className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs">+ Inversión</button>
             </header>
-            <div className="bg-white/[0.02] border border-white/5 rounded-[3rem] overflow-hidden">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-white/5 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    <th className="p-8">Servicio</th>
-                    <th className="p-8">Costo Unitario</th>
-                    <th className="p-8 text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {inventario.map(item => (
-                    <tr key={item.id} className="border-b border-white/5 hover:bg-white/[0.01]">
-                      <td className="p-8 text-white font-bold italic">{item.servicio}</td>
-                      <td className="p-8 text-blue-400 font-black italic">S/. {item.costo}</td>
-                      <td className="p-8 text-right">
-                        <button onClick={() => supabase.from('inventario').delete().eq('id', item.id).then(() => cargarTodo(session.user.id))} className="text-red-500/50 hover:text-red-500"><Trash2 size={18}/></button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {inventario.map(i => (
+                  <div key={i.id} className="bg-white/[0.02] border border-white/5 p-8 rounded-[2.5rem] relative group">
+                    <button onClick={() => supabase.from('inventario').delete().eq('id', i.id).then(() => cargarTodo(session.user.id))} className="absolute top-6 right-6 text-white/10 group-hover:text-red-500 transition-colors"><Trash2 size={14}/></button>
+                    <p className="text-slate-500 text-[10px] font-black uppercase italic mb-2 tracking-widest">Cuentas Compradas</p>
+                    <h3 className="text-2xl font-black text-white italic uppercase mb-4">{i.servicio}</h3>
+                    <div className="border-t border-white/5 pt-4 font-black text-red-500 text-xs italic">
+                      GASTO: S/. {i.costo_total?.toFixed(2)}
+                    </div>
+                  </div>
+                ))}
             </div>
           </div>
         )}
@@ -251,93 +257,96 @@ function App() {
         {/* FINANZAS */}
         {vistaActual === 'finanzas' && (
           <div className="animate-in fade-in duration-500 max-w-5xl mx-auto">
-            <h2 className="text-5xl font-black text-white italic uppercase mb-12 tracking-tighter">Historial de Ventas</h2>
-            <div className="bg-white/[0.02] border border-white/5 rounded-[3rem] overflow-hidden">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-white/5 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                    <th className="p-8">Cliente</th>
-                    <th className="p-8">Fecha</th>
-                    <th className="p-8">Tipo</th>
-                    <th className="p-8 text-right">Monto</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ventasHistoricas.map(v => (
-                    <tr key={v.id} className="border-b border-white/5">
-                      <td className="p-8 text-white font-bold italic">{v.proveedores?.nombre_negocio || 'Cliente Borrado'}</td>
-                      <td className="p-8 text-slate-500">{new Date(v.fecha_pago).toLocaleString()}</td>
-                      <td className="p-8"><span className="px-3 py-1 bg-white/5 rounded-full text-[9px] font-black uppercase tracking-widest">{v.metodo_pago}</span></td>
-                      <td className="p-8 text-right text-emerald-400 font-black italic">S/. {v.monto}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <h2 className="text-5xl font-black text-white italic uppercase mb-12 tracking-tighter">Historial</h2>
+            <div className="space-y-3">
+                {ventasHistoricas.map(v => (
+                  <div key={v.id} className="bg-white/[0.02] border border-white/5 p-6 rounded-3xl flex justify-between items-center hover:bg-white/[0.04] transition-all">
+                    <div className="flex gap-6 items-center italic">
+                       <span className="text-slate-600 text-[10px] font-black uppercase tracking-widest">{new Date(v.fecha_pago).toLocaleDateString()}</span>
+                       <span className="text-white font-black uppercase text-sm">{v.proveedores?.nombre_negocio || 'Venta Rápida'}</span>
+                    </div>
+                    <span className="text-emerald-500 font-black italic">S/. {v.monto?.toFixed(2)}</span>
+                  </div>
+                ))}
             </div>
           </div>
         )}
 
         {/* AJUSTES */}
         {vistaActual === 'ajustes' && (
-          <div className="animate-in fade-in duration-500 max-w-3xl mx-auto">
+          <div className="animate-in fade-in duration-500 max-w-4xl mx-auto">
             <h2 className="text-5xl font-black text-white italic uppercase mb-12 tracking-tighter">Ajustes</h2>
             <div className="bg-white/[0.02] border border-white/5 p-12 rounded-[3.5rem] space-y-8">
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Nombre Administrador</label>
-                <input value={userName} onChange={(e) => setUserName(e.target.value)} className="w-full bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none focus:border-blue-500/50 transition-all" />
-              </div>
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Actualizar Contraseña</label>
-                <div className="flex gap-4">
-                  <input type={showPass ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" className="flex-1 bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none focus:border-blue-500/50" />
-                  <button onClick={() => setShowPass(!showPass)} className="bg-white/5 p-5 rounded-2xl text-slate-500"><Eye size={20}/></button>
+                <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Nombre Admin</label>
+                    <input value={userName} onChange={(e) => setUserName(e.target.value)} className="w-full bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none focus:border-blue-500/50" />
                 </div>
-                <button onClick={async () => {
-                  const { error } = await supabase.auth.updateUser({ password: newPassword });
-                  if (error) alert(error.message); else alert("✅ Actualizada");
-                }} className="bg-blue-600 text-white w-full py-5 rounded-2xl font-black uppercase italic tracking-widest text-[11px]">Cambiar Clave</button>
-              </div>
+                <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Email Sistema</label>
+                        <input readOnly value={session.user.email} className="w-full bg-black/40 border border-white/5 rounded-2xl p-5 text-slate-500 font-bold" />
+                    </div>
+                    <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Nueva Clave</label>
+                        <div className="relative">
+                            <input type={showPass ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none" />
+                            <button onClick={() => setShowPass(!showPass)} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors">{showPass ? <EyeOff size={18}/> : <Eye size={18}/>}</button>
+                        </div>
+                    </div>
+                </div>
+                <button disabled={updatingPass} onClick={handleActualizarPassword} className="w-full bg-blue-600 py-6 rounded-2xl font-black uppercase italic tracking-widest text-xs flex items-center justify-center gap-3 shadow-2xl">
+                    <RefreshCw size={16} className={updatingPass ? 'animate-spin' : ''}/> {updatingPass ? 'ACTUALIZANDO...' : 'ACTUALIZAR CREDENCIALES'}
+                </button>
             </div>
           </div>
         )}
       </main>
 
-      {/* MODALES */}
+      {/* MODAL CLIENTE */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xl flex items-center justify-center p-6 z-50 animate-in zoom-in duration-300">
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 z-50 animate-in zoom-in duration-300">
           <div className="bg-[#0a0a0f] border border-white/10 p-12 rounded-[3.5rem] w-full max-w-xl">
             <div className="flex justify-between items-center mb-10">
                 <h3 className="text-3xl font-black italic text-white uppercase tracking-tighter">{editId ? 'Editar' : 'Venta'}</h3>
                 <button onClick={cerrarModal} className="text-slate-500 hover:text-white"><X size={28}/></button>
             </div>
             <form onSubmit={handleGuardarCliente} className="grid grid-cols-2 gap-6">
-              <input required value={form.nombre} onChange={e => setForm({...form, nombre: e.target.value})} className="col-span-2 bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none" placeholder="Nombre Cliente" />
-              <input required value={form.whatsapp} onChange={e => setForm({...form, whatsapp: e.target.value})} className="col-span-2 bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none" placeholder="WhatsApp" />
-              <select required value={form.servicio} onChange={e => setForm({...form, servicio: e.target.value})} className="bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none">
+              <input required value={form.nombre} onChange={e => setForm({...form, nombre: e.target.value})} className="col-span-2 bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none" placeholder="Nombre completo" />
+              <input required value={form.whatsapp} onChange={e => setForm({...form, whatsapp: e.target.value})} className="col-span-2 bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none" placeholder="WhatsApp (519...)" />
+              <select required value={form.servicio} onChange={e => setForm({...form, servicio: e.target.value})} className="bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none appearance-none">
                 <option value="" className="bg-slate-900">Servicio...</option>
-                {['Netflix', 'Disney+', 'Spotify', 'Magis TV', 'Prime Video', 'HBO Max'].map(s => <option key={s} value={s} className="bg-slate-900">{s}</option>)}
+                {['Netflix', 'Disney+', 'Spotify', 'Magis TV', 'Amazon Prime', 'HBO Max'].map(s => <option key={s} value={s} className="bg-slate-900">{s}</option>)}
               </select>
-              <input required type="number" step="0.01" value={form.monto} onChange={e => setForm({...form, monto: e.target.value})} className="bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none" placeholder="S/." />
-              <input required type="date" value={form.vencimiento} onChange={e => setForm({...form, vencimiento: e.target.value})} className="col-span-2 bg-white/5 border border-white/5 rounded-2xl p-5 text-slate-400 font-bold outline-none" />
+              <input required type="number" step="0.01" value={form.monto} onChange={e => setForm({...form, monto: e.target.value})} className="bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none" placeholder="Precio S/." />
+              <div className="col-span-2">
+                <label className="text-[10px] font-black text-slate-500 ml-5 uppercase italic mb-1 block tracking-widest">Fecha Vencimiento</label>
+                <input required type="date" value={form.vencimiento} onChange={e => setForm({...form, vencimiento: e.target.value})} className="w-full bg-white/5 border border-white/5 rounded-2xl p-5 text-slate-400 font-bold outline-none" />
+              </div>
               <button type="submit" className="col-span-2 bg-blue-600 py-6 rounded-2xl font-black uppercase italic tracking-widest shadow-2xl">GUARDAR REGISTRO</button>
             </form>
           </div>
         </div>
       )}
 
+      {/* MODAL STOCK */}
       {isInvModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xl flex items-center justify-center p-6 z-50 animate-in zoom-in duration-300">
-          <div className="bg-[#0a0a0f] border border-white/10 p-12 rounded-[3.5rem] w-full max-w-md">
-            <h3 className="text-3xl font-black italic text-white uppercase tracking-tighter mb-10">Nuevo Stock</h3>
-            <form onSubmit={handleGuardarInventario} className="space-y-6">
-              <input required value={invForm.servicio} onChange={e => setInvForm({...invForm, servicio: e.target.value})} className="w-full bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none" placeholder="Servicio (Ej: Netflix)" />
-              <input required type="number" step="0.01" value={invForm.costo} onChange={e => setInvForm({...invForm, costo: e.target.value})} className="w-full bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none" placeholder="Costo S/." />
-              <button type="submit" className="w-full bg-white text-black py-6 rounded-2xl font-black uppercase italic tracking-widest">GUARDAR EN INVENTARIO</button>
-              <button type="button" onClick={() => setIsInvModalOpen(false)} className="w-full text-slate-500 font-bold uppercase text-[10px]">Cancelar</button>
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 z-50 animate-in zoom-in duration-300">
+          <div className="bg-[#0a0a0f] border border-white/10 p-12 rounded-[3.5rem] w-full max-w-md text-white text-center">
+            <h3 className="text-3xl font-black italic text-white uppercase mb-10 tracking-tighter">Inversión</h3>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              await supabase.from('inventario').insert([{ servicio: invForm.servicio, costo_total: parseFloat(invForm.costo), user_id: session.user.id }]);
+              setIsInvModalOpen(false); setInvForm({servicio:'', costo:''}); cargarTodo(session.user.id);
+            }} className="space-y-6">
+              <input required value={invForm.servicio} onChange={e => setInvForm({...invForm, servicio: e.target.value})} className="w-full bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none" placeholder="Cuenta / Proveedor" />
+              <input required type="number" step="0.01" value={invForm.costo} onChange={e => setInvForm({...invForm, costo: e.target.value})} className="w-full bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none" placeholder="Costo Total S/." />
+              <button type="submit" className="w-full bg-white text-black py-6 rounded-2xl font-black uppercase italic tracking-widest">GUARDAR STOCK</button>
+              <button type="button" onClick={() => setIsInvModalOpen(false)} className="w-full text-slate-600 font-bold uppercase text-[10px] tracking-[0.2em]">Cerrar</button>
             </form>
           </div>
         </div>
       )}
+
     </div>
   );
 }
