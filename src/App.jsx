@@ -4,7 +4,7 @@ import {
   LayoutDashboard, PlusCircle, X, LogOut, Monitor, 
   Users, DollarSign, Search, Package, Edit3, Trash2, 
   Key, Mail, MessageCircle, Settings, RefreshCw, 
-  PanelLeftClose, PanelLeftOpen, Eye, EyeOff, Save, Clock, UserEdit
+  PanelLeftClose, PanelLeftOpen, Eye, EyeOff, Save, Clock
 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 
@@ -60,6 +60,7 @@ function App() {
   const [ventasHistoricas, setVentasHistoricas] = useState([]);
   const [filtro, setFiltro] = useState('');
 
+  // Estados de Ajustes
   const [userName, setUserName] = useState(() => localStorage.getItem('zero_user_name') || 'ADMIN ZERO');
   const [newPassword, setNewPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -92,14 +93,18 @@ function App() {
     return () => subscription.unsubscribe();
   }, [cargarTodo]);
 
-  useEffect(() => { localStorage.setItem('zero_user_name', userName); }, [userName]);
+  // Guardar nombre en LocalStorage
+  const handleGuardarNombre = () => {
+    localStorage.setItem('zero_user_name', userName);
+    alert("¡Nombre de administrador actualizado!");
+  };
 
   const handleActualizarPassword = async () => {
-    if (newPassword.length < 6) { alert("Mínimo 6 caracteres."); return; }
+    if (newPassword.length < 6) { alert("La clave debe tener al menos 6 caracteres."); return; }
     setUpdatingPass(true);
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) alert("Error: " + error.message);
-    else { alert("¡Contraseña actualizada!"); setNewPassword(''); }
+    else { alert("¡Contraseña actualizada con éxito!"); setNewPassword(''); }
     setUpdatingPass(false);
   };
 
@@ -131,6 +136,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#050509] text-slate-300 flex font-sans overflow-hidden select-none">
+      
       {/* SIDEBAR */}
       <aside className={`bg-black/20 backdrop-blur-3xl border-r border-white/5 flex flex-col transition-all duration-500 z-30 ${isSidebarOpen ? 'w-72' : 'w-0 opacity-0 overflow-hidden'}`}>
         <div className="p-10 flex flex-col h-full">
@@ -158,15 +164,16 @@ function App() {
       </aside>
 
       <main className="flex-1 overflow-y-auto px-12 py-10 relative bg-[#080811]">
-        {/* BOTÓN REUBICADO PARA NO CHOCAR CON EL LOGO */}
+        
+        {/* BOTÓN COLAPSAR REUBICADO: Más abajo y más a la derecha para no tapar el logo */}
         <button 
           onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
-          className="fixed top-12 left-12 z-40 bg-white/5 p-3 rounded-2xl border border-white/10 text-slate-500 hover:text-white hover:bg-white/10 transition-all shadow-2xl backdrop-blur-md"
+          className={`fixed top-14 z-50 bg-white/5 p-3 rounded-2xl border border-white/10 text-slate-500 hover:text-white hover:bg-white/10 transition-all shadow-2xl backdrop-blur-md ${isSidebarOpen ? 'left-80' : 'left-10'}`}
         >
             {isSidebarOpen ? <PanelLeftClose size={22} /> : <PanelLeftOpen size={22} />}
         </button>
 
-        {/* DASHBOARD */}
+        {/* CONTENIDO SEGÚN VISTA */}
         {vistaActual === 'dashboard' && (
           <div className="animate-in fade-in duration-700 max-w-7xl mx-auto">
              <header className="mb-12 pt-4">
@@ -188,7 +195,7 @@ function App() {
                     </div>
                     <div className="bg-white/[0.03] border border-white/10 p-8 rounded-[3rem] border-l-4 border-l-orange-500">
                         <p className="text-slate-500 text-[10px] font-black uppercase mb-2 italic">Próximos Vencimientos</p>
-                        <h4 className="text-4xl font-black text-white italic">{proximosAVencer.length} <span className="text-xs text-slate-500">Pers.</span></h4>
+                        <h4 className="text-4xl font-black text-white italic">{proximosAVencer.length} <span className="text-xs text-slate-500">Personas</span></h4>
                     </div>
                 </div>
              </div>
@@ -276,45 +283,49 @@ function App() {
           </div>
         )}
 
-        {/* AJUSTES CON NUEVO BOTÓN DE NOMBRE */}
+        {/* AJUSTES CON BOTÓN DE NOMBRE ADICIONAL */}
         {vistaActual === 'ajustes' && (
           <div className="animate-in fade-in duration-500 max-w-4xl mx-auto">
             <h2 className="text-5xl font-black text-white italic uppercase mb-12 pt-4 tracking-tighter">Ajustes</h2>
-            <div className="bg-white/[0.02] border border-white/5 p-12 rounded-[3.5rem] space-y-8">
-                {/* SECCIÓN NOMBRE */}
+            <div className="bg-white/[0.02] border border-white/10 p-12 rounded-[3.5rem] space-y-10">
+                
+                {/* PARTE NUEVA: ACTUALIZAR NOMBRE */}
                 <div className="space-y-4">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Nombre del Administrador</label>
                     <div className="flex gap-4">
-                        <input value={userName} onChange={(e) => setUserName(e.target.value)} className="flex-1 bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none focus:border-blue-500/50" placeholder="Ej: Admin Zero" />
-                        <button onClick={() => alert('¡Nombre actualizado localmente!')} className="bg-white text-black px-6 rounded-2xl font-black uppercase text-[10px] flex items-center gap-2 hover:bg-blue-600 hover:text-white transition-all">
-                            <Save size={16}/> Guardar
+                        <input value={userName} onChange={(e) => setUserName(e.target.value)} className="flex-1 bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none focus:border-blue-500/50" />
+                        <button onClick={handleGuardarNombre} className="bg-white text-black px-8 rounded-2xl font-black uppercase text-[10px] hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-2">
+                           <Save size={16}/> Guardar Nombre
                         </button>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-6 pt-4">
+                <div className="h-px bg-white/5"></div>
+
+                {/* ACTUALIZAR CREDENCIALES */}
+                <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-3">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Email del Sistema</label>
-                        <input readOnly value={session.user.email} className="w-full bg-black/40 border border-white/5 rounded-2xl p-5 text-slate-500 font-bold cursor-not-allowed" />
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Email Sistema</label>
+                        <input readOnly value={session.user.email} className="w-full bg-black/40 border border-white/5 rounded-2xl p-5 text-slate-600 font-bold cursor-not-allowed" />
                     </div>
                     <div className="space-y-3">
                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Nueva Contraseña</label>
                         <div className="relative">
                             <input type={showPass ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Mínimo 6 caracteres" className="w-full bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none focus:border-blue-500/50" />
-                            <button onClick={() => setShowPass(!showPass)} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors">{showPass ? <EyeOff size={18}/> : <Eye size={18}/>}</button>
+                            <button onClick={() => setShowPass(!showPass)} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">{showPass ? <EyeOff size={18}/> : <Eye size={18}/>}</button>
                         </div>
                     </div>
                 </div>
 
                 <button disabled={updatingPass} onClick={handleActualizarPassword} className="w-full bg-blue-600 py-6 rounded-2xl font-black uppercase italic tracking-widest text-xs flex items-center justify-center gap-3 shadow-2xl active:scale-95 transition-all">
-                    <RefreshCw size={16} className={updatingPass ? 'animate-spin' : ''}/> {updatingPass ? 'PROCESANDO...' : 'ACTUALIZAR CONTRASEÑA REAL'}
+                    <RefreshCw size={16} className={updatingPass ? 'animate-spin' : ''}/> {updatingPass ? 'PROCESANDO...' : 'ACTUALIZAR CONTRASEÑA'}
                 </button>
             </div>
           </div>
         )}
       </main>
 
-      {/* MODAL CLIENTE - MANTENIDO IGUAL */}
+      {/* MODAL CLIENTE */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 z-50 animate-in zoom-in duration-300">
           <div className="bg-[#0a0a0f] border border-white/10 p-12 rounded-[3.5rem] w-full max-w-xl">
@@ -340,7 +351,7 @@ function App() {
         </div>
       )}
 
-      {/* MODAL STOCK - MANTENIDO IGUAL */}
+      {/* MODAL STOCK */}
       {isInvModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 z-50 animate-in zoom-in duration-300">
           <div className="bg-[#0a0a0f] border border-white/10 p-12 rounded-[3.5rem] w-full max-w-md text-white text-center">
