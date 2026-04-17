@@ -4,7 +4,8 @@ import {
   LayoutDashboard, PlusCircle, X, LogOut, Monitor, 
   Users, DollarSign, Search, Package, Edit3, Trash2, 
   Key, Mail, MessageCircle, Settings, RefreshCw, 
-  PanelLeftClose, PanelLeftOpen, Eye, EyeOff, Save, Clock, Calendar, ShieldCheck, AlertOctagon
+  PanelLeftClose, PanelLeftOpen, Eye, EyeOff, Save, Clock, Calendar,
+  ShieldAlert, Crown
 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 
@@ -45,12 +46,46 @@ function AuthView() {
   );
 }
 
+// --- PANTALLA DE CUENTA BLOQUEADA ---
+function BlockedView({ onSignOut }) {
+  return (
+    <div className="min-h-screen bg-[#0a0000] flex items-center justify-center p-6 text-white relative overflow-hidden">
+      <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-red-900/20 blur-[150px] rounded-full"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-red-800/10 blur-[100px] rounded-full"></div>
+      <div className="z-10 text-center max-w-md animate-in fade-in zoom-in duration-700">
+        <div className="w-24 h-24 mx-auto mb-8 bg-red-600/10 border border-red-500/30 rounded-3xl flex items-center justify-center">
+          <ShieldAlert size={40} className="text-red-500" />
+        </div>
+        <h2 className="text-4xl font-black italic uppercase tracking-tighter text-white mb-3">
+          ACCESO SUSPENDIDO
+        </h2>
+        <p className="text-red-400/70 text-xs font-black uppercase tracking-[0.3em] mb-8 italic">
+          Suscripción vencida o inactiva
+        </p>
+        <div className="bg-red-950/30 border border-red-500/20 rounded-3xl p-8 mb-8 text-left space-y-3">
+          <p className="text-slate-400 text-sm font-bold leading-relaxed">
+            Tu cuenta ha sido <span className="text-red-400">suspendida</span> porque tu suscripción venció o fue desactivada por el administrador.
+          </p>
+          <p className="text-slate-500 text-xs leading-relaxed">
+            Contacta al administrador del sistema para renovar tu acceso y continuar usando la plataforma.
+          </p>
+        </div>
+        <button
+          onClick={onSignOut}
+          className="w-full bg-red-600/20 hover:bg-red-600/40 border border-red-500/30 text-red-400 py-4 rounded-2xl font-black uppercase text-xs italic tracking-widest transition-all flex items-center justify-center gap-3"
+        >
+          <LogOut size={16} /> Cerrar Sesión
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [session, setSession] = useState(null);
-  const [perfil, setPerfil] = useState(null);
-  const [bloqueado, setBloqueado] = useState(false);
-  const [vendedores, setVendedores] = useState([]); // Para el Panel Supremo
-  
+  const [sesionActiva, setSesionActiva] = useState(true);
+  const [esAdmin, setEsAdmin] = useState(false);
+  const [vendedores, setVendedores] = useState([]);
   const [vistaActual, setVistaActual] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -71,49 +106,6 @@ function App() {
   const [form, setForm] = useState({ nombre: '', whatsapp: '', servicio: '', monto: '', vencimiento: '' });
   const [invForm, setInvForm] = useState({ servicio: '', costo: '' });
 
-  // --- LÓGICA DE MONETIZACIÓN Y CONTROL ---
-  const verificarSuscripcion = useCallback(async (uId, email) => {
-    let { data, error } = await supabase
-      .from('perfiles_vendedores')
-      .select('*')
-      .eq('id', uId)
-      .single();
-
-    // Si no existe el perfil (vendedor nuevo), lo creamos con 7 días gratis
-    if (!data && !error) {
-        const { data: nuevoPerfil } = await supabase
-            .from('perfiles_vendedores')
-            .insert([{ id: uId, email: email }])
-            .select()
-            .single();
-        data = nuevoPerfil;
-    }
-
-    if (data) {
-      setPerfil(data);
-      const hoy = new Date();
-      const vencimiento = new Date(data.fecha_vencimiento);
-      
-      // Bloqueo si está inactivo o vencido (y NO es admin supremo)
-      if (!data.es_admin && (data.estado === 'inactivo' || hoy > vencimiento)) {
-        setBloqueado(true);
-      }
-    }
-  }, []);
-
-  const cargarVendedores = async () => {
-    const { data } = await supabase.from('perfiles_vendedores').select('*').order('email');
-    if (data) setVendedores(data);
-  };
-
-  const actualizarVendedor = async (id, campos) => {
-    const { error } = await supabase.from('perfiles_vendedores').update(campos).eq('id', id);
-    if (!error) {
-        alert("Actualizado con éxito");
-        cargarVendedores();
-    }
-  };
-
   const cargarTodo = useCallback(async (uId) => {
     const [reg, vnt, inv] = await Promise.all([
       supabase.from('proveedores').select('*').eq('user_id', uId).order('fecha_vencimiento', { ascending: true }),
@@ -125,30 +117,74 @@ function App() {
     if (inv.data) setInventario(inv.data);
   }, []);
 
+  // --- VERIFICACIÓN DE SUSCRIPCIÓN ---
+  const verificarSuscripcion = useCallback(async (userId) => {
+    const { data, error } = await supabase
+      .from('perfiles_vendedores')
+      .select('estado, fecha_vencimiento, es_admin')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error verificando suscripción:', error.message);
+      return;
+    }
+
+    if (data) {
+      setEsAdmin(!!data.es_admin);
+
+      if (!data.es_admin) {
+        const hoy = new Date();
+        const vencimiento = new Date(data.fecha_vencimiento);
+        if (data.estado === 'inactivo' || hoy > vencimiento) {
+          setSesionActiva(false);
+        }
+      }
+    }
+  }, []);
+
+  // --- CARGAR VENDEDORES (solo admin) ---
+  const cargarVendedores = useCallback(async () => {
+    const { data } = await supabase
+      .from('perfiles_vendedores')
+      .select('id, email, estado, fecha_vencimiento, es_admin')
+      .order('email', { ascending: true });
+    if (data) setVendedores(data);
+  }, []);
+
+  // --- CAMBIAR ESTADO DE VENDEDOR ---
+  const cambiarEstado = async (vendedorId, estadoActual) => {
+    const nuevoEstado = estadoActual === 'activo' ? 'inactivo' : 'activo';
+    const { error } = await supabase
+      .from('perfiles_vendedores')
+      .update({ estado: nuevoEstado })
+      .eq('id', vendedorId);
+    if (!error) cargarVendedores();
+    else alert('Error al cambiar estado: ' + error.message);
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
-          verificarSuscripcion(session.user.id, session.user.email);
-          cargarTodo(session.user.id);
+        verificarSuscripcion(session.user.id);
+        cargarTodo(session.user.id);
       }
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) {
-          verificarSuscripcion(session.user.id, session.user.email);
-          cargarTodo(session.user.id);
+        verificarSuscripcion(session.user.id);
+        cargarTodo(session.user.id);
       }
     });
     return () => subscription.unsubscribe();
   }, [cargarTodo, verificarSuscripcion]);
 
-  // Cargar lista de vendedores solo si soy Admin Supremo
+  // Cargar vendedores cuando se confirma que es admin
   useEffect(() => {
-    if (perfil?.es_admin && vistaActual === 'admin_panel') {
-        cargarVendedores();
-    }
-  }, [perfil, vistaActual]);
+    if (esAdmin) cargarVendedores();
+  }, [esAdmin, cargarVendedores]);
 
   const calcularDiasRestantes = (fecha) => {
     const hoy = new Date();
@@ -199,23 +235,9 @@ function App() {
     return cumpleTexto && cumplePlataforma;
   });
 
+  // --- GUARDS DE RENDERIZADO ---
   if (!session) return <AuthView />;
-
-  // --- VISTA DE BLOQUEO (SUSPENSIÓN) ---
-  if (bloqueado) {
-    return (
-        <div className="min-h-screen bg-[#050509] flex items-center justify-center p-6 text-center">
-            <div className="max-w-md bg-white/[0.02] border border-red-500/20 p-12 rounded-[3.5rem] backdrop-blur-xl">
-                <AlertOctagon size={80} className="text-red-500 mx-auto mb-6 animate-pulse" />
-                <h2 className="text-3xl font-black text-white italic uppercase mb-4 tracking-tighter">Acceso Suspendido</h2>
-                <p className="text-slate-400 font-bold mb-8">Tu suscripción a ZERO ha vencido o tu cuenta está inactiva. Por favor, contacta al administrador para renovar tu acceso.</p>
-                <button onClick={() => supabase.auth.signOut()} className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase italic tracking-widest hover:bg-red-500 hover:text-white transition-all">
-                    CERRAR SESIÓN
-                </button>
-            </div>
-        </div>
-    );
-  }
+  if (!sesionActiva) return <BlockedView onSignOut={() => supabase.auth.signOut()} />;
 
   return (
     <div className="min-h-screen bg-[#050509] text-slate-300 flex font-sans overflow-hidden select-none">
@@ -226,6 +248,7 @@ function App() {
             <div className="flex items-center gap-4 mb-16 px-2 text-white italic font-black text-2xl tracking-tighter">
                 <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg"><Monitor size={20}/></div>
                 ZERO
+                {esAdmin && <Crown size={14} className="text-yellow-400 ml-auto" />}
             </div>
             <nav className="flex-1 space-y-3">
               {[
@@ -233,19 +256,13 @@ function App() {
                 { id: 'clientes', label: 'Clientes', icon: <Users size={20}/> },
                 { id: 'stock', label: 'Stock', icon: <Package size={20}/> },
                 { id: 'finanzas', label: 'Finanzas', icon: <DollarSign size={20}/> },
+                ...(esAdmin ? [{ id: 'admin', label: 'Admin', icon: <Crown size={20}/> }] : []),
                 { id: 'ajustes', label: 'Ajustes', icon: <Settings size={20}/> }
               ].map(item => (
-                <button key={item.id} onClick={() => setVistaActual(item.id)} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all text-[13px] ${vistaActual === item.id ? 'bg-white/10 text-white border border-white/10' : 'text-slate-500 hover:text-white'}`}>
+                <button key={item.id} onClick={() => setVistaActual(item.id)} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all text-[13px] ${vistaActual === item.id ? 'bg-white/10 text-white border border-white/10' : 'text-slate-500 hover:text-white'} ${item.id === 'admin' ? 'border border-yellow-500/20 text-yellow-500/70 hover:text-yellow-400' : ''}`}>
                     {item.icon} {item.label}
                 </button>
               ))}
-
-              {/* BOTÓN SOLO PARA EL DUEÑO (ADMIN SUPREMO) */}
-              {perfil?.es_admin && (
-                <button onClick={() => setVistaActual('admin_panel')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all text-[13px] border ${vistaActual === 'admin_panel' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' : 'text-yellow-500/50 border-transparent hover:text-yellow-500'}`}>
-                    <ShieldCheck size={20}/> ADMIN SUPREMO
-                </button>
-              )}
             </nav>
             <button onClick={() => supabase.auth.signOut()} className="mt-auto flex items-center gap-3 p-4 text-slate-600 hover:text-red-400 font-bold transition-all text-xs uppercase tracking-widest">
                 <LogOut size={16}/> Salir
@@ -255,6 +272,7 @@ function App() {
 
       <main className="flex-1 overflow-y-auto px-12 py-10 relative bg-[#080811]">
         
+        {/* BOTÓN COLAPSAR */}
         <button 
           onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
           className={`fixed top-14 z-50 bg-white/5 p-3 rounded-2xl border border-white/10 text-slate-500 hover:text-white hover:bg-white/10 transition-all shadow-2xl backdrop-blur-md ${isSidebarOpen ? 'left-80' : 'left-10'}`}
@@ -396,6 +414,91 @@ function App() {
           </div>
         )}
 
+        {/* PANEL ADMIN */}
+        {vistaActual === 'admin' && esAdmin && (
+          <div className="animate-in fade-in duration-500 max-w-5xl mx-auto">
+            <header className="flex justify-between items-center mb-12 pt-4">
+              <div className="flex items-center gap-4">
+                <h2 className="text-5xl font-black text-white italic uppercase tracking-tighter">Admin</h2>
+                <span className="text-yellow-500/50 text-[10px] font-black uppercase tracking-[0.3em] italic border border-yellow-500/20 px-3 py-1 rounded-full">Supremo</span>
+              </div>
+              <button onClick={cargarVendedores} className="text-slate-500 hover:text-white p-3 rounded-2xl bg-white/5 border border-white/5 hover:border-white/20 transition-all">
+                <RefreshCw size={16}/>
+              </button>
+            </header>
+
+            <div className="bg-white/[0.02] border border-yellow-500/20 rounded-[3rem] overflow-hidden">
+              <div className="px-8 py-6 border-b border-yellow-500/10 flex items-center gap-3">
+                <Crown size={16} className="text-yellow-500" />
+                <span className="text-yellow-500 font-black text-xs uppercase tracking-widest italic">Panel Supremo — Gestión de Vendedores</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-white/5">
+                      <th className="text-left p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Vendedor</th>
+                      <th className="text-left p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Estado</th>
+                      <th className="text-left p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Vencimiento</th>
+                      <th className="text-left p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Rol</th>
+                      <th className="text-left p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vendedores.map(v => {
+                      const diasRestantes = v.fecha_vencimiento ? calcularDiasRestantes(v.fecha_vencimiento) : null;
+                      return (
+                        <tr key={v.id} className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-all">
+                          <td className="p-6">
+                            <span className="font-black text-white text-sm italic">{v.email}</span>
+                          </td>
+                          <td className="p-6">
+                            <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${v.estado === 'activo' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-red-400 border-red-500/30 bg-red-500/10'}`}>
+                              {v.estado}
+                            </span>
+                          </td>
+                          <td className="p-6">
+                            <div>
+                              <span className="text-slate-400 text-xs font-bold">{v.fecha_vencimiento || '—'}</span>
+                              {diasRestantes !== null && (
+                                <div className={`text-[9px] font-black uppercase mt-1 ${diasRestantes < 0 ? 'text-red-500' : diasRestantes <= 3 ? 'text-orange-500' : 'text-slate-600'}`}>
+                                  {diasRestantes < 0 ? `Venció hace ${Math.abs(diasRestantes)}d` : diasRestantes === 0 ? 'Vence hoy' : `${diasRestantes}d restantes`}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-6">
+                            {v.es_admin
+                              ? <span className="text-[10px] font-black text-yellow-500 uppercase tracking-widest flex items-center gap-1"><Crown size={12}/> Admin</span>
+                              : <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Vendedor</span>
+                            }
+                          </td>
+                          <td className="p-6">
+                            {!v.es_admin && (
+                              <button 
+                                onClick={() => cambiarEstado(v.id, v.estado)}
+                                className={`px-5 py-2 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all border ${v.estado === 'activo' ? 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'}`}
+                              >
+                                {v.estado === 'activo' ? 'Suspender' : 'Activar'}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {vendedores.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="p-12 text-center text-slate-600 text-xs font-bold italic uppercase">
+                          No hay vendedores registrados
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* AJUSTES */}
         {vistaActual === 'ajustes' && (
           <div className="animate-in fade-in duration-500 max-w-4xl mx-auto">
@@ -427,60 +530,6 @@ function App() {
                 <button disabled={updatingPass} onClick={handleActualizarPassword} className="w-full bg-blue-600 py-6 rounded-2xl font-black uppercase italic tracking-widest text-xs flex items-center justify-center gap-3 shadow-2xl active:scale-95 transition-all">
                     <RefreshCw size={16} className={updatingPass ? 'animate-spin' : ''}/> {updatingPass ? 'PROCESANDO...' : 'ACTUALIZAR CONTRASEÑA'}
                 </button>
-            </div>
-          </div>
-        )}
-
-        {/* PANEL SUPREMO (ADMINISTRADOR DEL SISTEMA) */}
-        {vistaActual === 'admin_panel' && perfil?.es_admin && (
-          <div className="animate-in fade-in duration-500 max-w-7xl mx-auto">
-            <h2 className="text-5xl font-black text-yellow-500 italic uppercase mb-12 pt-4 tracking-tighter">Control de Vendedores</h2>
-            <div className="bg-white/[0.02] border border-white/5 rounded-[3rem] overflow-hidden">
-                <table className="w-full text-left">
-                    <thead className="bg-white/5">
-                        <tr className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                            <th className="p-6">Vendedor</th>
-                            <th className="p-6">Estado</th>
-                            <th className="p-6">Vencimiento Sistema</th>
-                            <th className="p-6 text-right">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                        {vendedores.map(v => (
-                            <tr key={v.id} className="hover:bg-white/[0.01] transition-all">
-                                <td className="p-6">
-                                    <div className="font-bold text-white">{v.email}</div>
-                                    <div className="text-[9px] text-slate-500 uppercase">{v.id}</div>
-                                </td>
-                                <td className="p-6">
-                                    <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase ${v.estado === 'activo' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
-                                        {v.estado}
-                                    </span>
-                                </td>
-                                <td className="p-6 font-bold text-slate-400">
-                                    {v.fecha_vencimiento}
-                                </td>
-                                <td className="p-6 text-right space-x-2">
-                                    <button 
-                                        onClick={() => actualizarVendedor(v.id, { estado: v.estado === 'activo' ? 'inactivo' : 'activo' })}
-                                        className="bg-white/5 hover:bg-white hover:text-black px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all"
-                                    >
-                                        {v.estado === 'activo' ? 'Suspender' : 'Activar'}
-                                    </button>
-                                    <button 
-                                        onClick={() => {
-                                            const nuevaFecha = prompt("Nueva fecha (AAAA-MM-DD):", v.fecha_vencimiento);
-                                            if(nuevaFecha) actualizarVendedor(v.id, { fecha_vencimiento: nuevaFecha });
-                                        }}
-                                        className="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all"
-                                    >
-                                        +30 Días
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
             </div>
           </div>
         )}
