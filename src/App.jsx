@@ -4,7 +4,7 @@ import {
   LayoutDashboard, PlusCircle, X, LogOut, Monitor, 
   Users, DollarSign, Search, Package, Edit3, Trash2, 
   Key, Mail, MessageCircle, Settings, RefreshCw, 
-  PanelLeftClose, PanelLeftOpen, Eye, EyeOff, Save, Clock, Calendar
+  PanelLeftClose, PanelLeftOpen, Eye, EyeOff, Save, Clock, Calendar, ShieldCheck, AlertOctagon
 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 
@@ -47,6 +47,10 @@ function AuthView() {
 
 function App() {
   const [session, setSession] = useState(null);
+  const [perfil, setPerfil] = useState(null);
+  const [bloqueado, setBloqueado] = useState(false);
+  const [vendedores, setVendedores] = useState([]); // Para el Panel Supremo
+  
   const [vistaActual, setVistaActual] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -67,6 +71,49 @@ function App() {
   const [form, setForm] = useState({ nombre: '', whatsapp: '', servicio: '', monto: '', vencimiento: '' });
   const [invForm, setInvForm] = useState({ servicio: '', costo: '' });
 
+  // --- LÓGICA DE MONETIZACIÓN Y CONTROL ---
+  const verificarSuscripcion = useCallback(async (uId, email) => {
+    let { data, error } = await supabase
+      .from('perfiles_vendedores')
+      .select('*')
+      .eq('id', uId)
+      .single();
+
+    // Si no existe el perfil (vendedor nuevo), lo creamos con 7 días gratis
+    if (!data && !error) {
+        const { data: nuevoPerfil } = await supabase
+            .from('perfiles_vendedores')
+            .insert([{ id: uId, email: email }])
+            .select()
+            .single();
+        data = nuevoPerfil;
+    }
+
+    if (data) {
+      setPerfil(data);
+      const hoy = new Date();
+      const vencimiento = new Date(data.fecha_vencimiento);
+      
+      // Bloqueo si está inactivo o vencido (y NO es admin supremo)
+      if (!data.es_admin && (data.estado === 'inactivo' || hoy > vencimiento)) {
+        setBloqueado(true);
+      }
+    }
+  }, []);
+
+  const cargarVendedores = async () => {
+    const { data } = await supabase.from('perfiles_vendedores').select('*').order('email');
+    if (data) setVendedores(data);
+  };
+
+  const actualizarVendedor = async (id, campos) => {
+    const { error } = await supabase.from('perfiles_vendedores').update(campos).eq('id', id);
+    if (!error) {
+        alert("Actualizado con éxito");
+        cargarVendedores();
+    }
+  };
+
   const cargarTodo = useCallback(async (uId) => {
     const [reg, vnt, inv] = await Promise.all([
       supabase.from('proveedores').select('*').eq('user_id', uId).order('fecha_vencimiento', { ascending: true }),
@@ -81,14 +128,27 @@ function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session) cargarTodo(session.user.id);
+      if (session) {
+          verificarSuscripcion(session.user.id, session.user.email);
+          cargarTodo(session.user.id);
+      }
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (session) cargarTodo(session.user.id);
+      if (session) {
+          verificarSuscripcion(session.user.id, session.user.email);
+          cargarTodo(session.user.id);
+      }
     });
     return () => subscription.unsubscribe();
-  }, [cargarTodo]);
+  }, [cargarTodo, verificarSuscripcion]);
+
+  // Cargar lista de vendedores solo si soy Admin Supremo
+  useEffect(() => {
+    if (perfil?.es_admin && vistaActual === 'admin_panel') {
+        cargarVendedores();
+    }
+  }, [perfil, vistaActual]);
 
   const calcularDiasRestantes = (fecha) => {
     const hoy = new Date();
@@ -141,6 +201,22 @@ function App() {
 
   if (!session) return <AuthView />;
 
+  // --- VISTA DE BLOQUEO (SUSPENSIÓN) ---
+  if (bloqueado) {
+    return (
+        <div className="min-h-screen bg-[#050509] flex items-center justify-center p-6 text-center">
+            <div className="max-w-md bg-white/[0.02] border border-red-500/20 p-12 rounded-[3.5rem] backdrop-blur-xl">
+                <AlertOctagon size={80} className="text-red-500 mx-auto mb-6 animate-pulse" />
+                <h2 className="text-3xl font-black text-white italic uppercase mb-4 tracking-tighter">Acceso Suspendido</h2>
+                <p className="text-slate-400 font-bold mb-8">Tu suscripción a ZERO ha vencido o tu cuenta está inactiva. Por favor, contacta al administrador para renovar tu acceso.</p>
+                <button onClick={() => supabase.auth.signOut()} className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase italic tracking-widest hover:bg-red-500 hover:text-white transition-all">
+                    CERRAR SESIÓN
+                </button>
+            </div>
+        </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#050509] text-slate-300 flex font-sans overflow-hidden select-none">
       
@@ -163,6 +239,13 @@ function App() {
                     {item.icon} {item.label}
                 </button>
               ))}
+
+              {/* BOTÓN SOLO PARA EL DUEÑO (ADMIN SUPREMO) */}
+              {perfil?.es_admin && (
+                <button onClick={() => setVistaActual('admin_panel')} className={`w-full flex items-center gap-4 p-4 rounded-2xl font-bold transition-all text-[13px] border ${vistaActual === 'admin_panel' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' : 'text-yellow-500/50 border-transparent hover:text-yellow-500'}`}>
+                    <ShieldCheck size={20}/> ADMIN SUPREMO
+                </button>
+              )}
             </nav>
             <button onClick={() => supabase.auth.signOut()} className="mt-auto flex items-center gap-3 p-4 text-slate-600 hover:text-red-400 font-bold transition-all text-xs uppercase tracking-widest">
                 <LogOut size={16}/> Salir
@@ -172,7 +255,6 @@ function App() {
 
       <main className="flex-1 overflow-y-auto px-12 py-10 relative bg-[#080811]">
         
-        {/* BOTÓN COLAPSAR REUBICADO */}
         <button 
           onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
           className={`fixed top-14 z-50 bg-white/5 p-3 rounded-2xl border border-white/10 text-slate-500 hover:text-white hover:bg-white/10 transition-all shadow-2xl backdrop-blur-md ${isSidebarOpen ? 'left-80' : 'left-10'}`}
@@ -212,7 +294,7 @@ function App() {
           </div>
         )}
 
-        {/* CLIENTES / CARTERA CON FILTROS NUEVOS */}
+        {/* CLIENTES */}
         {vistaActual === 'clientes' && (
             <div className="animate-in fade-in duration-500 max-w-7xl mx-auto">
               <header className="flex justify-between items-center mb-6 pt-4">
@@ -231,7 +313,6 @@ function App() {
                 </div>
               </header>
 
-              {/* FILTRO POR PLATAFORMA */}
               <div className="flex gap-3 mb-10 overflow-x-auto pb-4 no-scrollbar">
                 <div className="w-16"></div>
                 {['Todas', 'Netflix', 'Disney+', 'Spotify', 'Magis TV', 'Amazon Prime', 'HBO Max'].map(p => (
@@ -346,6 +427,60 @@ function App() {
                 <button disabled={updatingPass} onClick={handleActualizarPassword} className="w-full bg-blue-600 py-6 rounded-2xl font-black uppercase italic tracking-widest text-xs flex items-center justify-center gap-3 shadow-2xl active:scale-95 transition-all">
                     <RefreshCw size={16} className={updatingPass ? 'animate-spin' : ''}/> {updatingPass ? 'PROCESANDO...' : 'ACTUALIZAR CONTRASEÑA'}
                 </button>
+            </div>
+          </div>
+        )}
+
+        {/* PANEL SUPREMO (ADMINISTRADOR DEL SISTEMA) */}
+        {vistaActual === 'admin_panel' && perfil?.es_admin && (
+          <div className="animate-in fade-in duration-500 max-w-7xl mx-auto">
+            <h2 className="text-5xl font-black text-yellow-500 italic uppercase mb-12 pt-4 tracking-tighter">Control de Vendedores</h2>
+            <div className="bg-white/[0.02] border border-white/5 rounded-[3rem] overflow-hidden">
+                <table className="w-full text-left">
+                    <thead className="bg-white/5">
+                        <tr className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                            <th className="p-6">Vendedor</th>
+                            <th className="p-6">Estado</th>
+                            <th className="p-6">Vencimiento Sistema</th>
+                            <th className="p-6 text-right">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                        {vendedores.map(v => (
+                            <tr key={v.id} className="hover:bg-white/[0.01] transition-all">
+                                <td className="p-6">
+                                    <div className="font-bold text-white">{v.email}</div>
+                                    <div className="text-[9px] text-slate-500 uppercase">{v.id}</div>
+                                </td>
+                                <td className="p-6">
+                                    <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase ${v.estado === 'activo' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                                        {v.estado}
+                                    </span>
+                                </td>
+                                <td className="p-6 font-bold text-slate-400">
+                                    {v.fecha_vencimiento}
+                                </td>
+                                <td className="p-6 text-right space-x-2">
+                                    <button 
+                                        onClick={() => actualizarVendedor(v.id, { estado: v.estado === 'activo' ? 'inactivo' : 'activo' })}
+                                        className="bg-white/5 hover:bg-white hover:text-black px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all"
+                                    >
+                                        {v.estado === 'activo' ? 'Suspender' : 'Activar'}
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            const nuevaFecha = prompt("Nueva fecha (AAAA-MM-DD):", v.fecha_vencimiento);
+                                            if(nuevaFecha) actualizarVendedor(v.id, { fecha_vencimiento: nuevaFecha });
+                                        }}
+                                        className="bg-blue-600/10 text-blue-500 hover:bg-blue-600 hover:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all"
+                                    >
+                                        +30 Días
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
           </div>
         )}
