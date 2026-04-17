@@ -4,7 +4,7 @@ import {
   LayoutDashboard, PlusCircle, X, LogOut, Monitor, 
   Users, DollarSign, Search, Package, Edit3, Trash2, 
   Key, Mail, MessageCircle, Settings, RefreshCw, 
-  PanelLeftClose, PanelLeftOpen, Eye, EyeOff, Save, Clock
+  PanelLeftClose, PanelLeftOpen, Eye, EyeOff, Save, Clock, Calendar
 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 
@@ -39,9 +39,6 @@ function AuthView() {
               {loading ? 'INICIANDO...' : 'ENTRAR'}
             </button>
           </div>
-          <a href="https://wa.me/51902257451" target="_blank" rel="noreferrer" className="flex items-center gap-2 text-[10px] font-black text-emerald-500 hover:text-emerald-400 uppercase tracking-widest transition-all italic">
-            <MessageCircle size={14}/> SOPORTE VENTAS
-          </a>
         </form>
       </div>
     </div>
@@ -59,8 +56,8 @@ function App() {
   const [inventario, setInventario] = useState([]);
   const [ventasHistoricas, setVentasHistoricas] = useState([]);
   const [filtro, setFiltro] = useState('');
+  const [plataformaFiltro, setPlataformaFiltro] = useState('Todas');
 
-  // Estados de Ajustes
   const [userName, setUserName] = useState(() => localStorage.getItem('zero_user_name') || 'ADMIN ZERO');
   const [newPassword, setNewPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -93,17 +90,27 @@ function App() {
     return () => subscription.unsubscribe();
   }, [cargarTodo]);
 
+  const calcularDiasRestantes = (fecha) => {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const vencimiento = new Date(fecha);
+    vencimiento.setHours(0, 0, 0, 0);
+    const diffTime = vencimiento - hoy;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
   const handleGuardarNombre = () => {
     localStorage.setItem('zero_user_name', userName);
     alert("¡Nombre de administrador actualizado!");
   };
 
   const handleActualizarPassword = async () => {
-    if (newPassword.length < 6) { alert("La clave debe tener al menos 6 caracteres."); return; }
+    if (newPassword.length < 6) { alert("Mínimo 6 caracteres."); return; }
     setUpdatingPass(true);
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) alert("Error: " + error.message);
-    else { alert("¡Contraseña actualizada con éxito!"); setNewPassword(''); }
+    else { alert("¡Éxito!"); setNewPassword(''); }
     setUpdatingPass(false);
   };
 
@@ -125,10 +132,11 @@ function App() {
 
   const abrirEdicion = (c) => { setEditId(c.id); setForm({ nombre: c.nombre_negocio, whatsapp: c.whatsapp, servicio: c.servicio, monto: c.monto, vencimiento: c.fecha_vencimiento }); setIsModalOpen(true); };
   const cerrarModal = () => { setIsModalOpen(false); setEditId(null); setForm({ nombre: '', whatsapp: '', servicio: '', monto: '', vencimiento: '' }); };
-  const esAtrasado = (f) => new Date(f) < new Date();
-  const proximosAVencer = registros.filter(r => {
-    const diff = new Date(r.fecha_vencimiento) - new Date();
-    return diff > 0 && diff < (3 * 24 * 60 * 60 * 1000);
+  
+  const registrosFiltrados = registros.filter(r => {
+    const cumpleTexto = r.nombre_negocio.toLowerCase().includes(filtro.toLowerCase()) || r.fecha_vencimiento.includes(filtro);
+    const cumplePlataforma = plataformaFiltro === 'Todas' || r.servicio === plataformaFiltro;
+    return cumpleTexto && cumplePlataforma;
   });
 
   if (!session) return <AuthView />;
@@ -194,54 +202,75 @@ function App() {
                         <h4 className="text-4xl font-black text-white italic">S/. {ventasHistoricas.reduce((acc, c) => acc + (c.monto || 0), 0).toFixed(2)}</h4>
                     </div>
                     <div className="bg-white/[0.03] border border-white/10 p-8 rounded-[3rem] border-l-4 border-l-orange-500">
-                        <p className="text-slate-500 text-[10px] font-black uppercase mb-2 italic">Próximos Vencimientos</p>
-                        <h4 className="text-4xl font-black text-white italic">{proximosAVencer.length} <span className="text-xs text-slate-500">Personas</span></h4>
+                        <p className="text-slate-500 text-[10px] font-black uppercase mb-2 italic">Cobros de Hoy</p>
+                        <h4 className="text-4xl font-black text-white italic">
+                          {registros.filter(r => r.fecha_vencimiento === new Date().toISOString().split('T')[0]).length} <span className="text-xs text-slate-500">Pendientes</span>
+                        </h4>
                     </div>
                 </div>
              </div>
           </div>
         )}
 
-        {/* CLIENTES / CARTERA */}
+        {/* CLIENTES / CARTERA CON FILTROS NUEVOS */}
         {vistaActual === 'clientes' && (
             <div className="animate-in fade-in duration-500 max-w-7xl mx-auto">
-              <header className="flex justify-between items-center mb-12 pt-4">
+              <header className="flex justify-between items-center mb-6 pt-4">
                 <div className="flex items-center gap-4">
                   <div className="w-16"></div>
                   <h2 className="text-5xl font-black text-white italic uppercase tracking-tighter">Cartera</h2>
                 </div>
                 <div className="flex gap-4">
-                  <div className="relative w-64">
+                  <div className="relative w-72">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={16}/>
-                    <input type="text" placeholder="Buscar..." className="w-full bg-white/5 border border-white/5 rounded-2xl py-3 pl-12 text-xs font-bold outline-none focus:border-white/20" onChange={(e) => setFiltro(e.target.value)} />
+                    <input type="text" placeholder="Buscar nombre o fecha (AAAA-MM-DD)..." className="w-full bg-white/5 border border-white/5 rounded-2xl py-3 pl-12 text-xs font-bold outline-none focus:border-white/20" onChange={(e) => setFiltro(e.target.value)} />
                   </div>
                   <button onClick={() => setIsModalOpen(true)} className="bg-white text-black px-8 py-4 rounded-2xl font-black uppercase text-xs flex items-center gap-3 hover:bg-blue-600 hover:text-white transition-all">
                     <PlusCircle size={18}/> Nuevo
                   </button>
                 </div>
               </header>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {registros.filter(r => r.nombre_negocio.toLowerCase().includes(filtro.toLowerCase())).map(item => (
-                  <div key={item.id} className="bg-white/[0.02] border border-white/5 p-8 rounded-[3rem] hover:border-blue-500/30 transition-all group">
-                    <div className="flex justify-between items-start mb-6">
-                        <div>
-                            <h3 className="font-black text-white italic text-2xl uppercase group-hover:text-blue-400 transition-colors">{item.nombre_negocio}</h3>
-                            <div className="text-[10px] font-black text-blue-500 uppercase italic tracking-widest mt-1">{item.servicio}</div>
-                        </div>
-                        <span className="text-xl font-black text-white">S/. {item.monto?.toFixed(2)}</span>
-                    </div>
-                    <div className="flex items-center justify-between border-t border-white/5 pt-6">
-                       <div className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${esAtrasado(item.fecha_vencimiento) ? 'text-red-500' : 'text-emerald-500'}`}>
-                         <Clock size={14}/> {new Date(item.fecha_vencimiento).toLocaleDateString()}
-                       </div>
-                       <div className="flex gap-2">
-                          <button onClick={() => abrirEdicion(item)} className="p-2 text-slate-500 hover:text-white transition-colors"><Edit3 size={16}/></button>
-                          <button onClick={() => handleRenovacion(item)} className="p-2 text-emerald-500 hover:scale-110 transition-all"><RefreshCw size={16}/></button>
-                          <button onClick={() => { if(window.confirm('¿Eliminar?')) supabase.from('proveedores').delete().eq('id', item.id).then(() => cargarTodo(session.user.id))}} className="p-2 text-red-500/50 hover:text-red-500"><Trash2 size={16}/></button>
-                       </div>
-                    </div>
-                  </div>
+
+              {/* FILTRO POR PLATAFORMA */}
+              <div className="flex gap-3 mb-10 overflow-x-auto pb-4 no-scrollbar">
+                <div className="w-16"></div>
+                {['Todas', 'Netflix', 'Disney+', 'Spotify', 'Magis TV', 'Amazon Prime', 'HBO Max'].map(p => (
+                  <button key={p} onClick={() => setPlataformaFiltro(p)} className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border ${plataformaFiltro === p ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white/5 border-white/5 text-slate-500 hover:border-white/20'}`}>
+                    {p}
+                  </button>
                 ))}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {registrosFiltrados.map(item => {
+                  const dias = calcularDiasRestantes(item.fecha_vencimiento);
+                  return (
+                    <div key={item.id} className="bg-white/[0.02] border border-white/5 p-8 rounded-[3rem] hover:border-blue-500/30 transition-all group">
+                      <div className="flex justify-between items-start mb-6">
+                          <div>
+                              <h3 className="font-black text-white italic text-2xl uppercase group-hover:text-blue-400 transition-colors">{item.nombre_negocio}</h3>
+                              <div className="text-[10px] font-black text-blue-500 uppercase italic tracking-widest mt-1">{item.servicio}</div>
+                          </div>
+                          <span className="text-xl font-black text-white">S/. {item.monto?.toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center justify-between border-t border-white/5 pt-6">
+                         <div className="space-y-1">
+                            <div className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${dias < 0 ? 'text-red-500' : dias <= 3 ? 'text-orange-500' : 'text-emerald-500'}`}>
+                              <Clock size={14}/> {new Date(item.fecha_vencimiento).toLocaleDateString()}
+                            </div>
+                            <div className="text-[9px] font-bold text-slate-600 uppercase">
+                              {dias === 0 ? "¡Vence hoy!" : dias > 0 ? `Faltan ${dias} días` : `Venció hace ${Math.abs(dias)} días`}
+                            </div>
+                         </div>
+                         <div className="flex gap-2">
+                            <button onClick={() => abrirEdicion(item)} className="p-2 text-slate-500 hover:text-white"><Edit3 size={16}/></button>
+                            <button onClick={() => handleRenovacion(item)} className="p-2 text-emerald-500 hover:scale-110"><RefreshCw size={16}/></button>
+                            <button onClick={() => { if(window.confirm('¿Eliminar?')) supabase.from('proveedores').delete().eq('id', item.id).then(() => cargarTodo(session.user.id))}} className="p-2 text-red-500/50 hover:text-red-500"><Trash2 size={16}/></button>
+                         </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
         )}
@@ -268,7 +297,7 @@ function App() {
           </div>
         )}
 
-        {/* FINANZAS / HISTORIAL */}
+        {/* FINANZAS */}
         {vistaActual === 'finanzas' && (
           <div className="animate-in fade-in duration-500 max-w-5xl mx-auto">
             <h2 className="text-5xl font-black text-white italic uppercase mb-12 pt-4 tracking-tighter">Historial</h2>
@@ -291,8 +320,6 @@ function App() {
           <div className="animate-in fade-in duration-500 max-w-4xl mx-auto">
             <h2 className="text-5xl font-black text-white italic uppercase mb-12 pt-4 tracking-tighter">Ajustes</h2>
             <div className="bg-white/[0.02] border border-white/10 p-12 rounded-[3.5rem] space-y-10">
-                
-                {/* ACTUALIZAR NOMBRE */}
                 <div className="space-y-4">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Nombre del Administrador</label>
                     <div className="flex gap-4">
@@ -302,10 +329,7 @@ function App() {
                         </button>
                     </div>
                 </div>
-
                 <div className="h-px bg-white/5"></div>
-
-                {/* ACTUALIZAR CREDENCIALES */}
                 <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-3">
                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Email Sistema</label>
@@ -319,7 +343,6 @@ function App() {
                         </div>
                     </div>
                 </div>
-
                 <button disabled={updatingPass} onClick={handleActualizarPassword} className="w-full bg-blue-600 py-6 rounded-2xl font-black uppercase italic tracking-widest text-xs flex items-center justify-center gap-3 shadow-2xl active:scale-95 transition-all">
                     <RefreshCw size={16} className={updatingPass ? 'animate-spin' : ''}/> {updatingPass ? 'PROCESANDO...' : 'ACTUALIZAR CONTRASEÑA'}
                 </button>
@@ -367,7 +390,6 @@ function App() {
               <input required value={invForm.servicio} onChange={e => setInvForm({...invForm, servicio: e.target.value})} className="w-full bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none" placeholder="Cuenta / Proveedor" />
               <input required type="number" step="0.01" value={invForm.costo} onChange={e => setInvForm({...invForm, costo: e.target.value})} className="w-full bg-white/5 border border-white/5 rounded-2xl p-5 text-white font-bold outline-none" placeholder="Costo Total S/." />
               <button type="submit" className="w-full bg-white text-black py-6 rounded-2xl font-black uppercase italic tracking-widest">GUARDAR STOCK</button>
-              <button type="button" onClick={() => setIsInvModalOpen(false)} className="w-full text-slate-600 font-bold uppercase text-[10px] tracking-[0.2em]">Cerrar</button>
             </form>
           </div>
         </div>
