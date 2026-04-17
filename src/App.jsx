@@ -93,7 +93,6 @@ function App() {
     return () => subscription.unsubscribe();
   }, [cargarTodo]);
 
-  // Guardar nombre en LocalStorage
   const handleGuardarNombre = () => {
     localStorage.setItem('zero_user_name', userName);
     alert("¡Nombre de administrador actualizado!");
@@ -165,7 +164,7 @@ function App() {
 
       <main className="flex-1 overflow-y-auto px-12 py-10 relative bg-[#080811]">
         
-        {/* BOTÓN COLAPSAR REUBICADO: Más abajo y más a la derecha para no tapar el logo */}
+        {/* BOTÓN COLAPSAR REUBICADO */}
         <button 
           onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
           className={`fixed top-14 z-50 bg-white/5 p-3 rounded-2xl border border-white/10 text-slate-500 hover:text-white hover:bg-white/10 transition-all shadow-2xl backdrop-blur-md ${isSidebarOpen ? 'left-80' : 'left-10'}`}
@@ -173,10 +172,11 @@ function App() {
             {isSidebarOpen ? <PanelLeftClose size={22} /> : <PanelLeftOpen size={22} />}
         </button>
 
-        {/* CONTENIDO SEGÚN VISTA */}
+        {/* DASHBOARD */}
         {vistaActual === 'dashboard' && (
           <div className="animate-in fade-in duration-700 max-w-7xl mx-auto">
-             <header className="mb-12 pt-4">
+             <header className="mb-12 pt-4 flex items-center gap-4">
+                <div className="w-16"></div> 
                 <h2 className="text-5xl font-black text-white italic uppercase tracking-tighter">Dashboard</h2>
              </header>
              <div className="grid grid-cols-12 gap-6">
@@ -202,11 +202,14 @@ function App() {
           </div>
         )}
 
-        {/* CLIENTES */}
+        {/* CLIENTES / CARTERA */}
         {vistaActual === 'clientes' && (
             <div className="animate-in fade-in duration-500 max-w-7xl mx-auto">
               <header className="flex justify-between items-center mb-12 pt-4">
-                <h2 className="text-5xl font-black text-white italic uppercase tracking-tighter">Cartera</h2>
+                <div className="flex items-center gap-4">
+                  <div className="w-16"></div>
+                  <h2 className="text-5xl font-black text-white italic uppercase tracking-tighter">Cartera</h2>
+                </div>
                 <div className="flex gap-4">
                   <div className="relative w-64">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={16}/>
@@ -265,7 +268,7 @@ function App() {
           </div>
         )}
 
-        {/* FINANZAS */}
+        {/* FINANZAS / HISTORIAL */}
         {vistaActual === 'finanzas' && (
           <div className="animate-in fade-in duration-500 max-w-5xl mx-auto">
             <h2 className="text-5xl font-black text-white italic uppercase mb-12 pt-4 tracking-tighter">Historial</h2>
@@ -283,13 +286,13 @@ function App() {
           </div>
         )}
 
-        {/* AJUSTES CON BOTÓN DE NOMBRE ADICIONAL */}
+        {/* AJUSTES */}
         {vistaActual === 'ajustes' && (
           <div className="animate-in fade-in duration-500 max-w-4xl mx-auto">
             <h2 className="text-5xl font-black text-white italic uppercase mb-12 pt-4 tracking-tighter">Ajustes</h2>
             <div className="bg-white/[0.02] border border-white/10 p-12 rounded-[3.5rem] space-y-10">
                 
-                {/* PARTE NUEVA: ACTUALIZAR NOMBRE */}
+                {/* ACTUALIZAR NOMBRE */}
                 <div className="space-y-4">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Nombre del Administrador</label>
                     <div className="flex gap-4">
